@@ -109,13 +109,13 @@ export default function CartPage() {
     }
   };
 
-  // TOTAL ITEM
+  // TOTAL ITEM (gabungan semua produk & qty)
   const totalItems = useMemo(
     () => items.reduce((sum, i) => sum + Number(i.qty || 1), 0),
     [items]
   );
 
-  // HITUNGAN HARGA & DISKON (untuk banyak produk sekaligus)
+  // HITUNGAN HARGA & DISKON (gabungan)
   const {
     subtotalBeforeDiscount,
     totalDiscountCut,
@@ -320,7 +320,7 @@ export default function CartPage() {
                             {i.name}
                           </p>
 
-                          {/* HARGA & DISKON – rapi */}
+                          {/* HARGA & DISKON – rapi per item */}
                           {disc > 0 ? (
                             <div className="mt-1 text-[11px] space-y-0.5">
                               <p className="text-slate-400 line-through">
@@ -343,7 +343,7 @@ export default function CartPage() {
                         </div>
                       </div>
 
-                      {/* BAWAH: LIHAT PRODUK + QTY (-/+) + HAPUS */}
+                      {/* BAWAH: QTY (-/+) + HAPUS + LIHAT PRODUK */}
                       <div className="mt-2 flex items-center justify-between text-[11px]">
                         <Link
                           href={`/${i.productId}`}
@@ -402,9 +402,9 @@ export default function CartPage() {
               )}
             </div>
 
-            {/* KOLOM HITUNGAN – pendek, jelas, ada pembatas */}
+            {/* KOLOM HITUNGAN – super rapih, gabungan semua barang */}
             <div className="text-xs space-y-1.5">
-              {/* 1. Barang (sebelum diskon) */}
+              {/* 1. Harga gabungan sebelum diskon */}
               <div className="flex items-center justify-between">
                 <span>Barang ({totalItems})</span>
                 <span className="font-semibold text-slate-400 line-through text-right">
@@ -412,7 +412,7 @@ export default function CartPage() {
                 </span>
               </div>
 
-              {/* 2. Diskon (pengurangan) */}
+              {/* 2. Diskon total (nominal) */}
               <div className="flex items-center justify-between">
                 <span>Diskon</span>
                 <span className="font-semibold text-red-500 text-right">
@@ -420,23 +420,23 @@ export default function CartPage() {
                 </span>
               </div>
 
-              {/* PEMBATAS */}
+              {/* PEMBATAS: subtotal setelah diskon */}
               <div className="border-t border-slate-200 dark:border-slate-700 pt-1.5 flex items-center justify-between">
-                <span>Subtotal</span>
+                <span>Setelah diskon</span>
                 <span className="font-semibold text-right">
                   {formatRupiah(subtotalAfterDiscount)}
                 </span>
               </div>
 
-              {/* 3. Fee admin (tambahan) */}
+              {/* 3. Fee admin QRIS */}
               <div className="flex items-center justify-between">
-                <span>Fee QRIS</span>
+                <span>Fee admin</span>
                 <span className="font-semibold text-right">
                   {formatRupiah(qrisFee)}
                 </span>
               </div>
               <p className="text-[10px] text-slate-500 dark:text-[var(--text-secondary)] text-right">
-                0,7% dari subtotal + Rp 310
+                QRIS 0,7% dari setelah diskon + Rp 310
               </p>
 
               {/* PEMBATAS TERAKHIR + TOTAL */}
