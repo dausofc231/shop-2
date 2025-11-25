@@ -531,7 +531,7 @@ export default function ProductDetailPage() {
         {/* CARD PRODUK */}
         <section className="card p-3 sm:p-3.5 space-y-3">
           {/* gambar + slider + thumb */}
-          <div className="space-y-2 pb-2 border-b border-slate-200 dark:border-slate-800">
+          <div className="space-y-1.5 pb-1">
             {hasImages ? (
               <div className="relative w-full rounded-2xl overflow-hidden bg-slate-100 dark:bg-slate-900 aspect-[4/3]">
                 <div
@@ -577,7 +577,7 @@ export default function ProductDetailPage() {
             )}
 
             {hasImages && (
-              <div className="flex items-center gap-2 overflow-x-auto pb-1">
+              <div className="flex items-center gap-2 overflow-x-auto pb-0.5">
                 {images.map((img, idx) => (
                   <button
                     key={idx}
@@ -601,19 +601,19 @@ export default function ProductDetailPage() {
             )}
           </div>
 
-          {/* TERJUAL / STOK dibungkus pill + garis */}
-          <div className="flex items-center justify-between gap-2 text-[11px] text-slate-600 dark:text-[var(--text-secondary)] py-2 border-b border-slate-200 dark:border-slate-800">
+          {/* TERJUAL / STOK dibungkus pill + garis atas & bawah, SUPER RAPET */}
+          <div className="flex items-center justify-between gap-2 text-[11px] text-slate-600 dark:text-[var(--text-secondary)] py-1.5 border-y border-slate-200 dark:border-slate-800">
             <div className="flex-1 flex justify-start">
-              <span className="inline-flex items-center px-2 py-1 rounded-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
                 <span className="opacity-70 mr-1">Terjual</span>
                 <span className="font-semibold">
                   {formatCompactNumber(product.sold || 0)}
                 </span>
               </span>
             </div>
-            <span className="h-5 w-px bg-slate-200 dark:bg-slate-700" />
+            <span className="h-4 w-px bg-slate-200 dark:bg-slate-700" />
             <div className="flex-1 flex justify-end">
-              <span className="inline-flex items-center px-2 py-1 rounded-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
                 <span className="opacity-70 mr-1">Stok</span>
                 <span className="font-semibold">
                   {formatCompactNumber(product.stock || 0)}
@@ -622,8 +622,8 @@ export default function ProductDetailPage() {
             </div>
           </div>
 
-          {/* TITLE + HARGA – super rapet */}
-          <div className="space-y-1 py-2 border-b border-slate-200 dark:border-slate-800">
+          {/* TITLE + HARGA – super rapet, diskon dirapetin & sama ukuran */}
+          <div className="space-y-1 py-1.5 border-b border-slate-200 dark:border-slate-800">
             <button
               type="button"
               onClick={() => setShowFullTitle((v) => !v)}
@@ -638,7 +638,8 @@ export default function ProductDetailPage() {
               </h1>
             </button>
 
-            <div className="flex items-center justify-between gap-2">
+            {/* PEMBATAS ANTARA TITLE & NOMINAL */}
+            <div className="mt-1 pt-1 flex items-center justify-between gap-1.5 border-t border-slate-200 dark:border-slate-800">
               <button
                 type="button"
                 onClick={() => setShowFullPrice((v) => !v)}
@@ -663,7 +664,7 @@ export default function ProductDetailPage() {
               </button>
 
               {discount > 0 && (
-                <span className="px-2 py-0.5 rounded-full text-[11px] bg-red-500 text-white font-semibold">
+                <span className="px-1.5 py-0 rounded-full text-base bg-red-500 text-white font-semibold leading-none flex items-center">
                   -{discount}%
                 </span>
               )}
