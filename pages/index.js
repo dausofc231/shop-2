@@ -18,6 +18,8 @@ import {
   FiUser,
   FiLogOut,
   FiSearch,
+  FiChevronLeft,
+  FiChevronRight,
 } from "react-icons/fi";
 
 export default function HomePage() {
@@ -35,30 +37,29 @@ export default function HomePage() {
 
   const [activeSlide, setActiveSlide] = useState(0);
 
-  /* SLIDER DATA (POSTER) */
+  // === DATA UNTUK POSTER / SLIDER (MIRIP SS) ===
   const sliderData = [
     {
       id: 0,
-      title: "Bayar belanjaan pakai DP dulu ✨",
-      description:
-        "Pilih produk favoritmu, bayar 30% / 50% dulu, sisa bisa diselesaikan belakangan.",
+      title: "New Arrivals",
+      description: "Produk terbaru hadir setiap minggunya.",
+      buttonLabel: "See new items",
+      buttonUrl: "#katalog",
+      imageUrl:
+        "https://images.pexels.com/photos/2529148/pexels-photo-2529148.jpeg?auto=compress&cs=tinysrgb&w=1200",
+    },
+    {
+      id: 1,
+      title: "Belanja lebih santai",
+      description: "Gunakan DP dan lunasi nanti sesuai kesepakatan.",
       buttonLabel: "Mulai belanja",
       buttonUrl: "#katalog",
       imageUrl:
         "https://images.pexels.com/photos/5632371/pexels-photo-5632371.jpeg?auto=compress&cs=tinysrgb&w=1200",
     },
     {
-      id: 1,
-      title: "New Arrivals tiap minggu",
-      description: "Produk baru terus masuk. Jangan sampai kehabisan stok.",
-      buttonLabel: "Lihat yang baru",
-      buttonUrl: "#katalog",
-      imageUrl:
-        "https://images.pexels.com/photos/2529148/pexels-photo-2529148.jpeg?auto=compress&cs=tinysrgb&w=1200",
-    },
-    {
       id: 2,
-      title: "Best sellers pilihan pengguna",
+      title: "Best sellers pilihan",
       description: "Lihat produk yang paling sering dibeli dan disukai.",
       buttonLabel: "Lihat best seller",
       buttonUrl: "#katalog",
@@ -67,14 +68,13 @@ export default function HomePage() {
     },
   ];
 
-  /* THEME INIT */
+  // === THEME INIT & APPLY ===
   useEffect(() => {
     if (typeof window === "undefined") return;
     const stored = localStorage.getItem("theme") || "dark";
     setTheme(stored);
   }, []);
 
-  /* THEME APPLY */
   useEffect(() => {
     if (typeof window === "undefined") return;
     const root = document.documentElement;
@@ -86,7 +86,7 @@ export default function HomePage() {
   const toggleTheme = () =>
     setTheme((prev) => (prev === "dark" ? "light" : "dark"));
 
-  /* AUTH */
+  // === AUTH ===
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (user) => {
       setCurrentUser(user || null);
@@ -107,7 +107,12 @@ export default function HomePage() {
     return () => unsub();
   }, []);
 
-  /* LOAD PRODUCTS */
+  const handleLogout = async () => {
+    await signOut(auth);
+    setMenuOpen(false);
+  };
+
+  // === LOAD PRODUCTS ===
   useEffect(() => {
     const loadProducts = async () => {
       setLoadingProducts(true);
@@ -132,13 +137,20 @@ export default function HomePage() {
     loadProducts();
   }, []);
 
-  /* SLIDER AUTO */
+  // === AUTO SLIDER ===
   useEffect(() => {
     const id = setInterval(() => {
       setActiveSlide((prev) => (prev + 1) % sliderData.length);
     }, 5000);
     return () => clearInterval(id);
   }, [sliderData.length]);
+
+  const goPrevSlide = () =>
+    setActiveSlide((prev) =>
+      prev === 0 ? sliderData.length - 1 : prev - 1
+    );
+  const goNextSlide = () =>
+    setActiveSlide((prev) => (prev + 1) % sliderData.length);
 
   const formatRupiah = (value) =>
     new Intl.NumberFormat("id-ID", {
@@ -147,12 +159,7 @@ export default function HomePage() {
       maximumFractionDigits: 0,
     }).format(Number(value || 0));
 
-  const handleLogout = async () => {
-    await signOut(auth);
-    setMenuOpen(false);
-  };
-
-  /* FILTER + SORT PRODUK */
+  // === FILTER & SORT PRODUK (SEARCH + DROPDOWN) ===
   const filteredProducts = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();
 
@@ -174,7 +181,7 @@ export default function HomePage() {
         list = [...list].sort((a, b) => (b.sold || 0) - (a.sold || 0));
         break;
       default: // latest
-        // sudah dari Firestore terbaru duluan
+        // sudah desc by createdAt dari Firestore
         break;
     }
 
@@ -182,22 +189,23 @@ export default function HomePage() {
   }, [products, searchTerm, sortOption]);
 
   return (
-    <div className="min-h-screen bg-slate-100 dark:bg-bg-dark text-slate-900 dark:text-[var(--text)] text-sm">
-      {/* NAVBAR */}
-      <header className="w-full border-b border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-bg-dark/80 backdrop-blur sticky top-0 z-20">
+    <div className="min-h-screen bg-[#020817] text-slate-50">
+      {/* NAVBAR ATAS (tetap versi baru) */}
+      <header className="w-full border-b border-slate-800 bg-[#020817]/95 backdrop-blur sticky top-0 z-20">
         <div className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between gap-3">
-          <div className="font-semibold text-lg text-slate-900 dark:text-[var(--text)]">
-            Shop<span className="text-primary">Lite</span>
+          <div className="font-semibold text-lg">
+            <span className="text-white">Shop</span>
+            <span className="text-sky-400">Lite</span>
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3">
-            {/* Info saldo kecil */}
+            {/* info saldo kecil */}
             {userDoc && (
               <div className="hidden sm:flex flex-col text-[11px] text-right">
-                <span className="font-semibold truncate">
+                <span className="font-semibold truncate text-slate-50">
                   {userDoc.username}
                 </span>
-                <span className="text-slate-500 dark:text-[var(--text-secondary)]">
+                <span className="text-slate-400">
                   Saldo {formatRupiah(userDoc.saldo || 0)}
                 </span>
               </div>
@@ -205,22 +213,22 @@ export default function HomePage() {
 
             <Link
               href="/cart"
-              className="relative h-8 w-8 flex items-center justify-center rounded-full border border-slate-300 dark:border-slate-600 bg-white dark:bg-card-dark"
+              className="relative h-9 w-9 flex items-center justify-center rounded-full bg-[#0b1220] border border-slate-600"
               aria-label="Keranjang"
             >
-              <FiShoppingCart className="text-slate-700 dark:text-[var(--text)]" />
+              <FiShoppingCart className="text-slate-100" />
             </Link>
 
-            {/* THEME */}
+            {/* THEME TOGGLE */}
             <button
               onClick={toggleTheme}
-              className="h-8 w-8 flex items-center justify-center rounded-full border border-slate-300 dark:border-slate-600 bg-white dark:bg-card-dark"
+              className="h-9 w-9 flex items-center justify-center rounded-full bg-[#0b1220] border border-slate-600"
               aria-label="Dark / light mode"
             >
               {theme === "dark" ? (
-                <FiSun className="text-primary" />
+                <FiSun className="text-yellow-300" />
               ) : (
-                <FiMoon className="text-slate-700" />
+                <FiMoon className="text-slate-100" />
               )}
             </button>
 
@@ -229,36 +237,36 @@ export default function HomePage() {
               <button
                 type="button"
                 onClick={() => setMenuOpen((v) => !v)}
-                className="h-8 px-3 inline-flex items-center gap-2 rounded-full border border-slate-300 dark:border-slate-600 bg-white dark:bg-card-dark text-xs"
+                className="h-9 px-3 inline-flex items-center gap-2 rounded-full bg-[#0b1220] border border-slate-600 text-xs"
               >
-                <FiUser className="text-slate-600 dark:text-[var(--text-secondary)]" />
-                <span className="hidden sm:inline text-[11px] max-w-[100px] truncate">
+                <FiUser className="text-slate-100" />
+                <span className="hidden sm:inline text-[11px] max-w-[120px] truncate">
                   {userDoc?.username ||
                     currentUser?.email ||
                     "Sign in / Register"}
                 </span>
               </button>
               {menuOpen && (
-                <div className="absolute right-0 mt-2 w-44 rounded-xl bg-white dark:bg-card-dark shadow-lg border border-slate-200/80 dark:border-slate-700 py-1 text-xs z-30">
+                <div className="absolute right-0 mt-2 w-44 rounded-xl bg-[#020617] border border-slate-700 shadow-lg py-1 text-xs z-30">
                   {currentUser ? (
                     <>
                       <Link
                         href="/dasborUser"
-                        className="block px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-800"
+                        className="block px-3 py-2 hover:bg-slate-800"
                         onClick={() => setMenuOpen(false)}
                       >
                         Dashboard user
                       </Link>
                       <Link
                         href="/dasboradmins"
-                        className="block px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-800"
+                        className="block px-3 py-2 hover:bg-slate-800"
                         onClick={() => setMenuOpen(false)}
                       >
                         Dashboard admin
                       </Link>
                       <button
                         onClick={handleLogout}
-                        className="w-full text-left px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-2 text-red-500"
+                        className="w-full text-left px-3 py-2 hover:bg-slate-800 flex items-center gap-2 text-red-400"
                       >
                         <FiLogOut className="w-3 h-3" />
                         Logout
@@ -268,14 +276,14 @@ export default function HomePage() {
                     <>
                       <Link
                         href="/auth/login"
-                        className="block px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-800"
+                        className="block px-3 py-2 hover:bg-slate-800"
                         onClick={() => setMenuOpen(false)}
                       >
                         Sign in
                       </Link>
                       <Link
                         href="/auth/register"
-                        className="block px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-800"
+                        className="block px-3 py-2 hover:bg-slate-800"
                         onClick={() => setMenuOpen(false)}
                       >
                         Register
@@ -289,43 +297,40 @@ export default function HomePage() {
         </div>
       </header>
 
-      {/* CONTENT */}
+      {/* MAIN CONTENT */}
       <main className="max-w-5xl mx-auto px-4 py-6 space-y-6">
-        {/* POSTER + SEARCH */}
-        <section className="grid gap-4 md:grid-cols-[1.2fr_1fr]">
-          {/* POSTER / SLIDER */}
-          <div className="card overflow-hidden flex flex-col md:flex-row md:items-stretch">
-            <div className="relative w-full md:w-1/2 aspect-[4/3] md:aspect-auto rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-900">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={sliderData[activeSlide].imageUrl}
-                alt={sliderData[activeSlide].title}
-                className="w-full h-full object-cover"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/10 to-transparent" />
-            </div>
-            <div className="flex-1 px-4 py-3 flex flex-col justify-between">
-              <div>
-                <p className="text-[11px] uppercase tracking-wide text-primary font-semibold mb-1">
-                  DP system
-                </p>
-                <h1 className="text-base font-semibold mb-1">
-                  {sliderData[activeSlide].title}
-                </h1>
-                <p className="text-xs text-slate-600 dark:text-[var(--text-secondary)] mb-3">
-                  {sliderData[activeSlide].description}
-                </p>
-              </div>
+        {/* POSTER / SLIDER MIRIP SCREENSHOT */}
+        <section className="rounded-3xl bg-[#020617] border border-slate-800 p-3 sm:p-4">
+          <div className="relative overflow-hidden rounded-3xl bg-[#0b1120]">
+            <div className="grid md:grid-cols-[1.3fr_1fr] gap-0">
+              {/* Gambar */}
+              <div className="relative">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={sliderData[activeSlide].imageUrl}
+                  alt={sliderData[activeSlide].title}
+                  className="w-full h-full max-h-[260px] object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-r from-black/40 via-black/10 to-transparent" />
 
-              <div className="flex items-center justify-between mt-2">
-                <Link
-                  href={sliderData[activeSlide].buttonUrl}
-                  className="inline-flex items-center justify-center px-3 py-1.5 rounded-full bg-primary text-white text-[11px] font-semibold"
+                {/* panah kiri/kanan */}
+                <button
+                  type="button"
+                  onClick={goPrevSlide}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-black/40 flex items-center justify-center text-slate-100"
                 >
-                  {sliderData[activeSlide].buttonLabel}
-                </Link>
+                  <FiChevronLeft />
+                </button>
+                <button
+                  type="button"
+                  onClick={goNextSlide}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-black/40 flex items-center justify-center text-slate-100"
+                >
+                  <FiChevronRight />
+                </button>
 
-                <div className="flex items-center gap-1">
+                {/* bullet */}
+                <div className="absolute bottom-3 left-0 right-0 flex items-center justify-center gap-1.5">
                   {sliderData.map((s, idx) => (
                     <button
                       key={s.id}
@@ -333,112 +338,82 @@ export default function HomePage() {
                       onClick={() => setActiveSlide(idx)}
                       className={`h-1.5 rounded-full transition-all ${
                         idx === activeSlide
-                          ? "w-5 bg-primary"
-                          : "w-2 bg-slate-300 dark:bg-slate-600"
+                          ? "w-5 bg-sky-400"
+                          : "w-2 bg-slate-500"
                       }`}
                     />
                   ))}
                 </div>
               </div>
+
+              {/* teks kanan */}
+              <div className="flex flex-col justify-center px-4 py-4 md:py-6">
+                <h1 className="text-xl font-semibold mb-1 text-white">
+                  {sliderData[activeSlide].title}
+                </h1>
+                <p className="text-xs text-slate-300 mb-3">
+                  {sliderData[activeSlide].description}
+                </p>
+                <Link
+                  href={sliderData[activeSlide].buttonUrl}
+                  className="inline-flex items-center justify-center px-4 py-2 rounded-full bg-sky-500 hover:bg-sky-400 text-white text-xs font-semibold w-max"
+                >
+                  {sliderData[activeSlide].buttonLabel}
+                </Link>
+              </div>
             </div>
           </div>
+        </section>
 
-          {/* SEARCH + FILTER */}
-          <div className="card flex flex-col gap-3">
-            <div>
-              <p className="text-[11px] uppercase tracking-wide text-slate-500 dark:text-[var(--text-secondary)] mb-1">
-                Cari & filter
-              </p>
-              <h2 className="text-sm font-semibold mb-1">
-                Temukan produk yang kamu mau
-              </h2>
-            </div>
+        {/* OUR PRODUCTS + SEARCH + DROPDOWN (MIRIP SS) */}
+        <section className="space-y-4">
+          <h2 className="text-center text-base font-semibold text-white">
+            Our Products
+          </h2>
 
+          {/* search + filter box */}
+          <div className="space-y-3 max-w-xl mx-auto">
+            {/* search */}
             <div className="relative">
-              <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-3.5 h-3.5" />
+              <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
               <input
                 type="text"
-                placeholder="Cari nama produk atau deskripsi..."
-                className="input w-full pl-8 text-xs"
+                placeholder="Cari produk yang ingin anda cari..."
+                className="w-full bg-[#020617] border border-slate-700 rounded-2xl py-2.5 pl-9 pr-3 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-sky-500"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
 
-            <div className="flex flex-wrap gap-1 text-[11px]">
-              <button
-                type="button"
-                onClick={() => setSortOption("latest")}
-                className={`px-3 py-1 rounded-full border ${
-                  sortOption === "latest"
-                    ? "bg-primary text-white border-primary"
-                    : "bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700"
-                }`}
+            {/* dropdown sort */}
+            <div>
+              <select
+                className="w-full bg-[#020617] border border-slate-700 rounded-2xl py-2.5 px-3 text-xs text-slate-100 focus:outline-none focus:border-sky-500"
+                value={sortOption}
+                onChange={(e) => setSortOption(e.target.value)}
               >
-                Terbaru
-              </button>
-              <button
-                type="button"
-                onClick={() => setSortOption("cheapest")}
-                className={`px-3 py-1 rounded-full border ${
-                  sortOption === "cheapest"
-                    ? "bg-primary text-white border-primary"
-                    : "bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700"
-                }`}
-              >
-                Termurah
-              </button>
-              <button
-                type="button"
-                onClick={() => setSortOption("expensive")}
-                className={`px-3 py-1 rounded-full border ${
-                  sortOption === "expensive"
-                    ? "bg-primary text-white border-primary"
-                    : "bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700"
-                }`}
-              >
-                Termahal
-              </button>
-              <button
-                type="button"
-                onClick={() => setSortOption("popular")}
-                className={`px-3 py-1 rounded-full border ${
-                  sortOption === "popular"
-                    ? "bg-primary text-white border-primary"
-                    : "bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700"
-                }`}
-              >
-                Terlaris
-              </button>
+                <option value="latest">Terbaru</option>
+                <option value="cheapest">Termurah</option>
+                <option value="expensive">Termahal</option>
+                <option value="popular">Terlaris</option>
+              </select>
             </div>
-
-            <p className="text-[11px] text-slate-500 dark:text-[var(--text-secondary)]">
-              Sistem DP tersedia di semua produk. Kamu bisa pilih bayar 30%, 50%
-              atau 100% di halaman keranjang.
-            </p>
           </div>
         </section>
 
-        {/* GRID PRODUK */}
-        <section id="katalog" className="space-y-3">
-          <div className="flex items-center justify-between gap-2">
-            <h2 className="text-sm font-semibold">Katalog produk</h2>
-            <span className="text-[11px] text-slate-500 dark:text-[var(--text-secondary)]">
-              {filteredProducts.length} produk
-            </span>
-          </div>
-
+        {/* GRID PRODUK – KARTU MIRIP SS */}
+        <section id="katalog" className="pb-6">
           {loadingProducts ? (
-            <p className="text-xs text-slate-500 dark:text-[var(--text-secondary)]">
+            <p className="text-xs text-center text-slate-400">
               Loading products...
             </p>
           ) : filteredProducts.length === 0 ? (
-            <p className="text-xs text-slate-500 dark:text-[var(--text-secondary)]">
+            <p className="text-xs text-center text-slate-400">
               Tidak ada produk yang cocok dengan pencarianmu.
             </p>
           ) : (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {filteredProducts.map((p) => {
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {filteredProducts.map((p, idx) => {
                 const price = Number(p.price || 0);
                 const discount = Number(p.discount || 0);
                 const finalPrice =
@@ -450,56 +425,67 @@ export default function HomePage() {
                     ? p.images[0]
                     : null;
 
+                // badge kanan (Baru/Populer)
+                let rightBadge = "Baru";
+                if ((p.sold || 0) > 0) rightBadge = "Populer";
+
                 return (
                   <Link
                     key={p.id}
                     href={`/${p.id}`}
-                    className="card group flex flex-col overflow-hidden hover:-translate-y-0.5 hover:shadow-lg transition"
+                    className="bg-[#020617] border border-slate-800 rounded-3xl overflow-hidden flex flex-col hover:border-sky-500/60 transition"
                   >
-                    <div className="relative w-full aspect-[4/3] mb-3 rounded-lg overflow-hidden bg-slate-100 dark:bg-slate-900">
+                    {/* Gambar + badge */}
+                    <div className="relative w-full aspect-[4/3] bg-[#020617]">
                       {firstImage ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
                           src={firstImage}
                           alt={p.name}
-                          className="w-full h-full object-cover group-hover:scale-[1.03] transition"
+                          className="w-full h-full object-cover"
                         />
                       ) : (
-                        <div className="w-full h-full flex items-center justify-center text-[11px] text-slate-400 dark:text-slate-600">
+                        <div className="w-full h-full flex items-center justify-center text-[11px] text-slate-500">
                           No image
                         </div>
                       )}
+
+                      {/* badge diskon kiri */}
                       {discount > 0 && (
-                        <div className="absolute top-2 left-2 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-red-500 text-white">
+                        <div className="absolute top-2 left-2 px-2 py-1 rounded-full bg-red-500 text-white text-[10px] font-semibold">
                           -{discount}%
                         </div>
                       )}
+
+                      {/* badge status kanan */}
+                      <div className="absolute top-2 right-2 px-2 py-1 rounded-full bg-sky-500 text-white text-[10px] font-semibold">
+                        {rightBadge}
+                      </div>
                     </div>
 
-                    <div className="flex-1 flex flex-col">
-                      <div className="text-sm font-semibold mb-1 line-clamp-2">
+                    {/* isi bawah kartu */}
+                    <div className="px-3 pt-3 pb-3 flex-1 flex flex-col gap-1">
+                      <div className="text-xs font-semibold text-white line-clamp-1">
                         {p.name}
                       </div>
-                      {p.description && (
-                        <p className="text-[11px] text-slate-600 dark:text-[var(--text-secondary)] mb-2 line-clamp-2 whitespace-pre-line break-words">
-                          {p.description}
-                        </p>
-                      )}
 
-                      <div className="mb-1">
-                        <div className="text-sm font-bold">
+                      <div className="text-[11px] text-slate-400 line-clamp-2">
+                        {p.description || "Produk unggulan yang sangat dinantikan."}
+                      </div>
+
+                      <div className="mt-1">
+                        <div className="text-xs font-semibold text-sky-400">
                           {formatRupiah(finalPrice)}
                         </div>
                         {discount > 0 && (
-                          <div className="text-[10px] text-slate-400 line-through">
+                          <div className="text-[10px] text-slate-500 line-through">
                             {formatRupiah(price)}
                           </div>
                         )}
                       </div>
 
-                      <div className="flex items-center justify-between mt-auto pt-2 text-[10px] text-slate-500 dark:text-[var(--text-secondary)]">
-                        <span>Terjual {p.sold || 0}</span>
-                        <span>Stok {p.stock || 0}</span>
+                      <div className="mt-2 text-[10px] text-slate-500">
+                        Terjual {p.sold || 0} • Stok {p.stock || 0}
                       </div>
                     </div>
                   </Link>
