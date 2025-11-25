@@ -1,339 +1,289 @@
 // pages/index.js
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { db, auth } from "../lib/firebase";
-import { doc, getDoc } from "firebase/firestore";
+import { useRouter } from "next/router";
+import { auth, db } from "../lib/firebase";
+import {
+  collection,
+  getDocs,
+  orderBy,
+  query,
+} from "firebase/firestore";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import {
   FiSun,
   FiMoon,
-  FiMenu,
+  FiLogOut,
+  FiShoppingCart,
   FiUser,
-  FiChevronLeft,
-  FiChevronRight,
 } from "react-icons/fi";
+import { getUserData } from "../lib/db";
 
-// DATA SLIDER – bebas kamu ganti imageUrl + teks + url
-const sliderData = [
-  {
-    id: 0,
-    title: "Special Discount",
-    description: "Get up to 50% off on selected items.",
-    buttonLabel: "Shop",
-    buttonUrl: "#",
-    imageUrl:
-      "https://images.pexels.com/photos/842567/pexels-photo-842567.jpeg?auto=compress&cs=tinysrgb&w=1200",
-  },
-  {
-    id: 1,
-    title: "New Arrivals",
-    description: "Produk terbaru hadir setiap minggunya.",
-    buttonLabel: "See new items",
-    buttonUrl: "#",
-    imageUrl:
-      "https://images.pexels.com/photos/2529148/pexels-photo-2529148.jpeg?auto=compress&cs=tinysrgb&w=1200",
-  },
-  {
-    id: 2,
-    title: "Best Sellers",
-    description: "Lihat produk paling populer di ShopLite.",
-    buttonLabel: "View best sellers",
-    buttonUrl: "#",
-    imageUrl:
-      "https://images.pexels.com/photos/7679879/pexels-photo-7679879.jpeg?auto=compress&cs=tinysrgb&w=1200",
-  },
-];
-
-export default function Home() {
-  // THEME
+export default function HomePage() {
+  const router = useRouter();
   const [theme, setTheme] = useState("dark");
-
-  // MENU
   const [menuOpen, setMenuOpen] = useState(false);
 
-  // AUTH + USER DOC
+  const [products, setProducts] = useState([]);
+  const [loadingProducts, setLoadingProducts] = useState(true);
+
   const [currentUser, setCurrentUser] = useState(null);
   const [userDoc, setUserDoc] = useState(null);
 
-  // SLIDER
-  const [activeSlide, setActiveSlide] = useState(0);
-  const [touchStartX, setTouchStartX] = useState(null);
-
-  /* THEME - LOAD DARI LOCALSTORAGE */
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    const stored = localStorage.getItem("theme") || "dark";
-    setTheme(stored);
+    const fetchProducts = async () => {
+      try {
+        const q = query(
+          collection(db, "products"),
+          orderBy("createdAt", "desc")
+        );
+        const snap = await getDocs(q);
+        const list = snap.docs.map((d) => ({
+          id: d.id,
+          ...d.data(),
+        }));
+        setProducts(list);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoadingProducts(false);
+      }
+    };
+    fetchProducts();
   }, []);
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const root = document.documentElement;
-    if (theme === "dark") root.classList.add("dark");
-    else root.classList.remove("dark");
-    localStorage.setItem("theme", theme);
-  }, [theme]);
-
-  const toggleTheme = () =>
-    setTheme((prev) => (prev === "dark" ? "light" : "dark"));
-
-  /* SLIDER AUTO */
-  useEffect(() => {
-    const id = setInterval(() => {
-      setActiveSlide((prev) => (prev + 1) % sliderData.length);
-    }, 5000); // 5 detik
-    return () => clearInterval(id);
-  }, []);
-
-  const goNextSlide = () =>
-    setActiveSlide((prev) => (prev + 1) % sliderData.length);
-  const goPrevSlide = () =>
-    setActiveSlide((prev) => (prev - 1 + sliderData.length) % sliderData.length);
-
-  const handleTouchStart = (e) => {
-    setTouchStartX(e.touches[0].clientX);
-  };
-
-  const handleTouchEnd = (e) => {
-    if (touchStartX === null) return;
-    const diff = e.changedTouches[0].clientX - touchStartX;
-    if (Math.abs(diff) > 40) {
-      if (diff < 0) goNextSlide();
-      else goPrevSlide();
-    }
-    setTouchStartX(null);
-  };
-
-  /* AUTH USER + FIRESTORE USERS */
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (user) => {
       setCurrentUser(user);
-      setUserDoc(null);
-
-      if (!user) return;
-
-      try {
-        const snap = await getDoc(doc(db, "users", user.uid));
-        if (snap.exists()) {
-          setUserDoc(snap.data());
-        }
-      } catch (err) {
-        console.error(err);
+      if (user) {
+        const data = await getUserData(user.uid);
+        setUserDoc(data);
+      } else {
+        setUserDoc(null);
       }
     });
     return () => unsub();
   }, []);
 
-  const handleLogout = async () => {
-    try {
-      await signOut(auth);
-      setMenuOpen(false);
-    } catch (err) {
-      console.error(err);
+  const toggleTheme = () => {
+    if (typeof window === "undefined") return;
+    const root = document.documentElement;
+    const current = root.classList.contains("dark") ? "dark" : "light";
+    if (current === "dark") {
+      root.classList.remove("dark");
+      localStorage.setItem("theme", "light");
+      setTheme("light");
+    } else {
+      root.classList.add("dark");
+      localStorage.setItem("theme", "dark");
+      setTheme("dark");
     }
   };
 
-  const createdDate = (() => {
-    if (!userDoc?.createdAt) return "-";
-    try {
-      const d = userDoc.createdAt.toDate();
-      return d.toLocaleDateString("id-ID");
-    } catch {
-      return "-";
-    }
-  })();
+  const handleLogout = async () => {
+    await signOut(auth);
+    router.push("/");
+  };
 
-  const dashboardPath =
-    userDoc?.role === "admins" ? "/dasboradmins" : "/dasborUser";
+  const formatRupiah = (value) =>
+    new Intl.NumberFormat("id-ID", {
+      style: "currency",
+      currency: "IDR",
+      maximumFractionDigits: 0,
+    }).format(Number(value || 0));
 
   return (
-    <div className="min-h-screen bg-slate-100 dark:bg-bg-dark text-slate-900 dark:text-[var(--text)] text-sm">
-      {/* NAVBAR */}
-      <header className="w-full border-b border-slate-200 dark:border-slate-700 bg-white/80 dark:bg-bg-dark/80 backdrop-blur sticky top-0 z-20">
-        <div className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
-          {/* LOGO */}
-          <div className="font-semibold text-lg text-slate-900 dark:text-[var(--text)]">
-            Shop<span className="text-primary">Lite</span>
+    <div className="min-h-screen bg-slate-100 dark:bg-bg-dark text-slate-900 dark:text-[var(--text)]">
+      {/* HEADER */}
+      <header className="sticky top-0 z-20 border-b border-slate-200/60 dark:border-slate-800 bg-white/80 dark:bg-bg-dark/80 backdrop-blur">
+        <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="font-semibold text-lg tracking-tight">
+              Shop<span className="text-primary">Lite</span>
+            </div>
+            <span className="hidden sm:inline text-[11px] px-2 py-0.5 rounded-full bg-slate-100 dark:bg-card-dark text-slate-500 dark:text-[var(--text-secondary)]">
+              Simple marketplace with DP system
+            </span>
           </div>
 
-          <div className="flex items-center gap-3">
-            {/* Dark / light */}
+          <div className="flex items-center gap-2">
+            {userDoc && (
+              <div className="hidden sm:flex items-center gap-2 text-xs px-2 py-1 rounded-full bg-slate-100 dark:bg-card-dark">
+                <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-semibold">
+                  {(userDoc.username || "U")[0]?.toUpperCase()}
+                </span>
+                <div className="flex flex-col leading-tight">
+                  <span className="font-semibold">{userDoc.username}</span>
+                  <span className="text-[10px] text-slate-500 dark:text-[var(--text-secondary)]">
+                    Saldo {formatRupiah(userDoc.saldo || 0)}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            <Link
+              href="/cart"
+              className="p-2 rounded-full bg-slate-100 dark:bg-card-dark text-slate-600 dark:text-[var(--text-secondary)]"
+            >
+              <FiShoppingCart className="w-4 h-4" />
+            </Link>
+
             <button
               onClick={toggleTheme}
-              className="h-9 w-9 flex items-center justify-center rounded-full border border-slate-300 dark:border-slate-600 bg-white dark:bg-card-dark"
-              aria-label="Dark / light mode"
+              type="button"
+              className="p-2 rounded-full bg-slate-100 dark:bg-card-dark"
             >
               {theme === "dark" ? (
-                <FiSun className="text-primary" />
+                <FiSun className="w-4 h-4" />
               ) : (
-                <FiMoon className="text-slate-700" />
+                <FiMoon className="w-4 h-4" />
               )}
             </button>
 
-            {/* Garis 3 (menu) */}
-            <button
-              onClick={() => setMenuOpen(true)}
-              className="h-9 w-9 flex items-center justify-center rounded-full border border-slate-300 dark:border-slate-600 bg-white dark:bg-card-dark"
-              aria-label="Menu"
-            >
-              <FiMenu className="text-slate-700 dark:text-[var(--text)]" />
-            </button>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setMenuOpen((v) => !v)}
+                className="p-2 rounded-full bg-slate-100 dark:bg-card-dark"
+              >
+                <FiUser className="w-4 h-4" />
+              </button>
+              {menuOpen && (
+                <div className="absolute right-0 mt-2 w-40 rounded-xl bg-white dark:bg-card-dark shadow-lg border border-slate-200/80 dark:border-slate-700 py-1 text-xs">
+                  {currentUser ? (
+                    <>
+                      <Link
+                        href="/dasborUser"
+                        className="block px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-800"
+                      >
+                        Dashboard user
+                      </Link>
+                      <Link
+                        href="/dasboradmins"
+                        className="block px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-800"
+                      >
+                        Dashboard admin
+                      </Link>
+                      <button
+                        onClick={handleLogout}
+                        className="w-full text-left px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-2 text-red-500"
+                      >
+                        <FiLogOut className="w-3 h-3" />
+                        Logout
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <Link
+                        href="/auth/login"
+                        className="block px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-800"
+                      >
+                        Sign in
+                      </Link>
+                      <Link
+                        href="/auth/register"
+                        className="block px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-800"
+                      >
+                        Register
+                      </Link>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </header>
 
-      {/* PANEL MENU (KANAN) */}
-      {menuOpen && (
-        <div className="fixed inset-0 z-40">
-          {/* overlay */}
-          <div
-            className="absolute inset-0 bg-black/40"
-            onClick={() => setMenuOpen(false)}
-          />
-
-          {/* panel */}
-          <div className="absolute right-0 top-0 h-full w-64 bg-white dark:bg-card-dark shadow-xl p-4 flex flex-col gap-3">
-            {/* PROFIL SINGKAT */}
-            {userDoc ? (
-              <div className="flex items-center gap-3 text-xs text-slate-800 dark:text-[var(--text)]">
-                <div className="h-10 w-10 rounded-full border border-slate-300 dark:border-slate-600 overflow-hidden bg-white dark:bg-bg-dark flex items-center justify-center flex-shrink-0">
-                  {userDoc.photoURL ? (
-                    <img
-                      src={userDoc.photoURL}
-                      alt="Avatar"
-                      className="h-full w-full object-cover"
-                    />
-                  ) : (
-                    <FiUser className="text-slate-500 dark:text-[var(--text-secondary)] h-5 w-5" />
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-semibold truncate">
-                    {userDoc.username || "User"}
-                  </p>
-                  <p className="text-[11px] text-slate-600 dark:text-[var(--text-secondary)]">
-                    Akun: <span className="font-medium">{userDoc.role || "-"}</span>
-                    {createdDate !== "-" && ` • ${createdDate}`}
-                  </p>
-                </div>
-              </div>
-            ) : (
-              <p className="text-xs text-slate-500 dark:text-[var(--text-secondary)]">
-                Belum login
-              </p>
-            )}
-
-            <div className="border-t border-slate-200 dark:border-slate-700" />
-
-            {/* MENU: PROFIL + LOGIN/LOGOUT */}
-            <nav className="flex flex-col gap-2 text-sm">
-              {userDoc && (
-                <>
-                  {/* PROFIL */}
-                  <Link
-                    href={dashboardPath}
-                    className="hover:underline text-slate-800 dark:text-[var(--text)]"
-                    onClick={() => setMenuOpen(false)}
-                  >
-                    Profil
-                  </Link>
-
-                  {/* LOGOUT */}
-                  <button
-                    onClick={handleLogout}
-                    className="text-left text-red-500 mt-1"
-                  >
-                    Logout
-                  </button>
-                </>
-              )}
-
-              {!userDoc && (
-                <Link
-                  href="/auth/login"
-                  className="hover:underline text-slate-800 dark:text-[var(--text)]"
-                  onClick={() => setMenuOpen(false)}
-                >
-                  Login
-                </Link>
-              )}
-            </nav>
-          </div>
+      {/* CONTENT */}
+      <main className="max-w-5xl mx-auto px-4 py-6">
+        <div className="mb-4">
+          <h1 className="text-lg font-semibold mb-1">
+            Pilih barang, bayar pakai DP ✨
+          </h1>
+          <p className="text-xs text-slate-500 dark:text-[var(--text-secondary)]">
+            Kamu bisa checkout dengan DP (30% / 50% / 100%). Sisa pembayaran dicatat
+            di riwayat pesananmu.
+          </p>
         </div>
-      )}
 
-      {/* MAIN CONTENT – hanya poster slider */}
-      <main className="max-w-5xl mx-auto px-4 py-8">
-        {/* HERO SLIDER */}
-        <section className="mb-6">
-          <div
-            className="relative overflow-hidden rounded-2xl h-44 sm:h-52 bg-slate-900"
-            onTouchStart={handleTouchStart}
-            onTouchEnd={handleTouchEnd}
-          >
-            <div
-              className="absolute inset-0 flex transition-transform duration-500 ease-out"
-              style={{ transform: `translateX(-${activeSlide * 100}%)` }}
-            >
-              {sliderData.map((slide) => (
-                <div
-                  key={slide.id}
-                  className="relative w-full h-full flex-shrink-0"
+        {loadingProducts ? (
+          <p className="text-xs text-slate-500 dark:text-[var(--text-secondary)]">
+            Loading products...
+          </p>
+        ) : products.length === 0 ? (
+          <p className="text-xs text-slate-500 dark:text-[var(--text-secondary)]">
+            Belum ada produk. Admin bisa menambah dari halaman dasbor.
+          </p>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {products.map((p) => {
+              const price = Number(p.price || 0);
+              const discount = Number(p.discount || 0);
+              const finalPrice =
+                discount > 0
+                  ? Math.round(price - (price * discount) / 100)
+                  : price;
+
+              const minDp = p.minDpPercent ?? 30;
+              const firstImage =
+                Array.isArray(p.images) && p.images.length > 0
+                  ? p.images[0]
+                  : null;
+
+              return (
+                <Link
+                  key={p.id}
+                  href={`/${p.id}`}
+                  className="card group flex flex-col overflow-hidden hover:-translate-y-0.5 hover:shadow-lg transition"
                 >
-                  <img
-                    src={slide.imageUrl}
-                    alt={slide.title}
-                    className="w-full h-full object-cover"
-                  />
-                  <div className="absolute inset-0 bg-black/35" />
-                  <div className="absolute inset-0 flex flex-col justify-center px-4 sm:px-6">
-                    <h1 className="text-base sm:text-lg font-semibold text-white mb-1">
-                      {slide.title}
-                    </h1>
-                    <p className="text-[11px] sm:text-xs text-slate-100 mb-3 max-w-[70%]">
-                      {slide.description}
-                    </p>
-                    <Link
-                      href={slide.buttonUrl}
-                      className="inline-flex items-center px-4 py-2 rounded-lg bg-primary text-xs sm:text-sm font-medium text-white shadow-md w-max"
-                    >
-                      {slide.buttonLabel}
-                    </Link>
+                  <div className="relative w-full aspect-[4/3] mb-3 rounded-lg overflow-hidden bg-slate-100 dark:bg-slate-900">
+                    {firstImage ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={firstImage}
+                        alt={p.name}
+                        className="w-full h-full object-cover group-hover:scale-[1.03] transition"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-[11px] text-slate-400 dark:text-slate-600">
+                        No image
+                      </div>
+                    )}
+                    {discount > 0 && (
+                      <div className="absolute top-2 left-2 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-red-500 text-white">
+                        -{discount}%
+                      </div>
+                    )}
+                    <div className="absolute bottom-2 left-2 px-2 py-0.5 rounded-full text-[10px] bg-black/60 text-white">
+                      DP mulai {minDp}%
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
 
-            {/* tombol prev/next */}
-            <button
-              onClick={goPrevSlide}
-              className="absolute left-2 top-1/2 -translate-y-1/2 h-7 w-7 rounded-full bg-black/40 flex items-center justify-center text-white text-xs"
-            >
-              <FiChevronLeft />
-            </button>
-            <button
-              onClick={goNextSlide}
-              className="absolute right-2 top-1/2 -translate-y-1/2 h-7 w-7 rounded-full bg-black/40 flex items-center justify-center text-white text-xs"
-            >
-              <FiChevronRight />
-            </button>
-
-            {/* indikator dot */}
-            <div className="absolute bottom-2 left-0 right-0 flex justify-center gap-2">
-              {sliderData.map((slide, idx) => (
-                <button
-                  key={slide.id}
-                  onClick={() => setActiveSlide(idx)}
-                  className={`h-2 w-2 rounded-full transition-all ${
-                    idx === activeSlide
-                      ? "bg-primary scale-110"
-                      : "bg-slate-300/80"
-                  }`}
-                />
-              ))}
-            </div>
+                  <div className="flex-1 flex flex-col">
+                    <div className="text-sm font-semibold mb-1 line-clamp-2">
+                      {p.name}
+                    </div>
+                    <div className="mb-1">
+                      <div className="text-sm font-bold">
+                        {formatRupiah(finalPrice)}
+                      </div>
+                      {discount > 0 && (
+                        <div className="text-[10px] text-slate-400 line-through">
+                          {formatRupiah(price)}
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex items-center justify-between mt-auto pt-2 text-[10px] text-slate-500 dark:text-[var(--text-secondary)]">
+                      <span>Terjual {p.sold || 0}</span>
+                      <span>Stok {p.stock || 0}</span>
+                    </div>
+                  </div>
+                </Link>
+              );
+            })}
           </div>
-        </section>
+        )}
       </main>
     </div>
   );
