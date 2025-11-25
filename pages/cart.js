@@ -8,10 +8,13 @@ import {
   getDocs,
   doc,
   deleteDoc,
+  getDoc,
+  addDoc,
+  serverTimestamp,
+  runTransaction,
 } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 import { FiArrowLeft, FiTrash2 } from "react-icons/fi";
-import { checkoutWithDP, getUserData } from "../lib/db";
 
 export default function CartPage() {
   const router = useRouter();
@@ -20,11 +23,12 @@ export default function CartPage() {
 
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [dpPercent, setDpPercent] = useState(30);
+
   const [message, setMessage] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
   const [processing, setProcessing] = useState(false);
 
+  // AUTH + LOAD USER + CART
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (user) => {
       if (!user) {
@@ -32,12 +36,22 @@ export default function CartPage() {
         return;
       }
       setCurrentUser(user);
-      const data = await getUserData(user.uid);
-      setUserDoc(data);
-      await loadCart(user.uid);
+      await Promise.all([loadUserDoc(user.uid), loadCart(user.uid)]);
     });
     return () => unsub();
   }, [router]);
+
+  const loadUserDoc = async (uid) => {
+    try {
+      const ref = doc(db, "users", uid);
+      const snap = await getDoc(ref);
+      if (snap.exists()) {
+        setUserDoc({ id: snap.id, ...snap.data() });
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   const loadCart = async (uid) => {
     setLoading(true);
@@ -68,22 +82,6 @@ export default function CartPage() {
     }
   };
 
-  const totalPrice = useMemo(
-    () =>
-      items.reduce(
-        (sum, i) => sum + Number(i.price || 0) * Number(i.qty || 1),
-        0
-      ),
-    [items]
-  );
-
-  const dpAmount = useMemo(
-    () => Math.round((totalPrice * dpPercent) / 100),
-    [totalPrice, dpPercent]
-  );
-
-  const remainingAmount = totalPrice - dpAmount;
-
   const formatRupiah = (value) =>
     new Intl.NumberFormat("id-ID", {
       style: "currency",
@@ -91,38 +89,153 @@ export default function CartPage() {
       maximumFractionDigits: 0,
     }).format(Number(value || 0));
 
-  const handleCheckout = async () => {
+  // TOTAL ITEM
+  const totalItems = useMemo(
+    () => items.reduce((sum, i) => sum + Number(i.qty || 1), 0),
+    [items]
+  );
+
+  // HITUNGAN HARGA & DISKON
+  const {
+    subtotalBeforeDiscount,
+    totalDiscountPercent,
+    totalDiscountCut,
+    subtotalAfterDiscount,
+  } = useMemo(() => {
+    let before = 0;
+    let discPercentSum = 0;
+    let discCut = 0;
+
+    items.forEach((i) => {
+      const qty = Number(i.qty || 1);
+      const price = Number(i.price || 0);
+      const disc = Number(i.discount || 0);
+
+      const lineBefore = price * qty;
+      before += lineBefore;
+      discPercentSum += disc; // cuma buat info (bukan rata-rata bobot)
+
+      if (disc > 0) {
+        const cut = Math.round((price * disc) / 100) * qty;
+        discCut += cut;
+      }
+    });
+
+    const after = before - discCut;
+
+    return {
+      subtotalBeforeDiscount: before,
+      totalDiscountPercent: discPercentSum, // hanya info; dipakai di UI
+      totalDiscountCut: discCut,
+      subtotalAfterDiscount: after,
+    };
+  }, [items]);
+
+  // Fee admin QRIS: 0.7% + Rp 310, dihitung dari subtotal setelah diskon
+  const qrisFee = useMemo(
+    () =>
+      subtotalAfterDiscount > 0
+        ? Math.round(subtotalAfterDiscount * 0.007) + 310
+        : 0,
+    [subtotalAfterDiscount]
+  );
+
+  const grandTotal = subtotalAfterDiscount + qrisFee;
+
+  // --- ORDER HELPER (untuk saldo) ---
+  const createOrderAndClearCart = async ({ method }) => {
     if (!currentUser) return;
-    setMessage("");
-    setErrorMsg("");
+
+    const ordersCol = collection(db, "orders");
+    await addDoc(ordersCol, {
+      userId: currentUser.uid,
+      items: items.map((i) => ({
+        id: i.id,
+        productId: i.productId,
+        name: i.name,
+        price: Number(i.price || 0),
+        discount: Number(i.discount || 0),
+        qty: Number(i.qty || 1),
+      })),
+      subtotalBeforeDiscount,
+      totalDiscountCut,
+      subtotalAfterDiscount,
+      adminFee: qrisFee,
+      grandTotal,
+      paymentMethod: method, // "qris" | "saldo"
+      status: "pending",
+      createdAt: serverTimestamp(),
+    });
+
+    await Promise.all(
+      items.map((i) =>
+        deleteDoc(doc(db, "users", currentUser.uid, "cart", i.id))
+      )
+    );
+    setItems([]);
+  };
+
+  // --- BAYAR LANGSUNG (QRIS) -> ke halaman lain ---
+  const handlePayWithQRIS = () => {
+    if (!currentUser) return;
     if (!items.length) {
       setErrorMsg("Keranjang masih kosong.");
       return;
     }
+
+    const params = new URLSearchParams({
+      subtotal: String(subtotalBeforeDiscount),
+      discountCut: String(totalDiscountCut),
+      afterDiscount: String(subtotalAfterDiscount),
+      fee: String(qrisFee),
+      grandTotal: String(grandTotal),
+    }).toString();
+
+    router.push(`/checkout?${params}`);
+  };
+
+  // --- BAYAR PAKAI SALDO (proses di sini) ---
+  const handlePayWithSaldo = async () => {
+    if (!currentUser) return;
+    if (!items.length) {
+      setErrorMsg("Keranjang masih kosong.");
+      return;
+    }
+
     setProcessing(true);
+    setMessage("");
+    setErrorMsg("");
+
     try {
-      await checkoutWithDP({
-        userId: currentUser.uid,
-        items: items.map((i) => ({
-          id: i.id,
-          productId: i.productId,
-          price: i.price,
-          qty: i.qty,
-          name: i.name,
-        })),
-        dpPercent,
+      await runTransaction(db, async (tx) => {
+        const userRef = doc(db, "users", currentUser.uid);
+        const userSnap = await tx.get(userRef);
+        if (!userSnap.exists()) {
+          throw new Error("User tidak ditemukan");
+        }
+        const data = userSnap.data();
+        const saldo = Number(data.saldo || 0);
+        if (saldo < grandTotal) {
+          throw new Error("SALDO_TIDAK_CUKUP");
+        }
+        tx.update(userRef, { saldo: saldo - grandTotal });
       });
+
+      await createOrderAndClearCart({ method: "saldo" });
+
       setMessage(
-        `Checkout berhasil! Kamu membayar DP ${dpPercent}% sebesar ${formatRupiah(
-          dpAmount
-        )}. Sisa ${formatRupiah(remainingAmount)} dicatat sebagai tagihan.`
+        `Pembayaran berhasil menggunakan saldo. Total dipotong: ${formatRupiah(
+          grandTotal
+        )}.`
       );
-      setItems([]);
-      const updatedUser = await getUserData(currentUser.uid);
-      setUserDoc(updatedUser);
+      await loadUserDoc(currentUser.uid);
     } catch (err) {
       console.error(err);
-      setErrorMsg(err.message || "Checkout gagal.");
+      if (err.message === "SALDO_TIDAK_CUKUP") {
+        setErrorMsg("Saldo tidak mencukupi untuk membayar total + biaya QRIS.");
+      } else {
+        setErrorMsg("Checkout dengan saldo gagal.");
+      }
     } finally {
       setProcessing(false);
     }
@@ -130,7 +243,8 @@ export default function CartPage() {
 
   return (
     <div className="min-h-screen bg-slate-100 dark:bg-bg-dark text-slate-900 dark:text-[var(--text)]">
-      <div className="max-w-3xl mx-auto px-4 py-4">
+      <div className="max-w-3xl mx-auto px-4 py-4 pb-6">
+        {/* HEADER */}
         <div className="flex items-center justify-between mb-4">
           <Link
             href="/"
@@ -147,20 +261,12 @@ export default function CartPage() {
           </Link>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-[1.2fr_1fr]">
-          {/* List item */}
+        <div className="space-y-4">
+          {/* KERANJANG BELANJA */}
           <div className="card">
-            <div className="flex items-center justify-between mb-3">
-              <h1 className="text-base font-semibold">Keranjang</h1>
-              {userDoc && (
-                <div className="text-[11px] text-slate-500 dark:text-[var(--text-secondary)]">
-                  Saldo:{" "}
-                  <span className="font-semibold">
-                    {formatRupiah(userDoc.saldo || 0)}
-                  </span>
-                </div>
-              )}
-            </div>
+            <h1 className="text-base font-semibold mb-3">
+              Keranjang Belanja
+            </h1>
 
             {loading ? (
               <p className="text-xs text-slate-500 dark:text-[var(--text-secondary)]">
@@ -172,83 +278,141 @@ export default function CartPage() {
               </p>
             ) : (
               <div className="space-y-3">
-                {items.map((i) => (
-                  <div
-                    key={i.id}
-                    className="flex items-start justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-3 last:border-0"
-                  >
-                    <div>
-                      <div className="text-sm font-semibold mb-1">
-                        {i.name}
+                {items.map((i) => {
+                  const qty = Number(i.qty || 1);
+                  const price = Number(i.price || 0);
+                  const disc = Number(i.discount || 0);
+                  const finalPerUnit =
+                    disc > 0
+                      ? Math.round(price - (price * disc) / 100)
+                      : price;
+
+                  return (
+                    <div
+                      key={i.id}
+                      className="rounded-2xl bg-slate-900/5 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800 p-3 flex gap-3"
+                    >
+                      {/* KOTAK GAMBAR – cuma border */}
+                      <div className="flex flex-col items-center gap-2">
+                        <div className="h-16 w-16 rounded-xl border border-slate-300 dark:border-slate-700" />
+                        <Link
+                          href={`/${i.productId}`}
+                          className="text-[11px] text-primary underline"
+                        >
+                          Lihat produk
+                        </Link>
                       </div>
-                      <div className="text-[11px] text-slate-500 dark:text-[var(--text-secondary)]">
-                        {formatRupiah(i.price)} x {i.qty} ={" "}
-                        <span className="font-semibold">
-                          {formatRupiah(
-                            Number(i.price || 0) * Number(i.qty || 1)
+
+                      {/* INFO PRODUK */}
+                      <div className="flex-1 min-w-0 flex flex-col justify-between gap-1">
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold truncate">
+                            {i.name}
+                          </p>
+
+                          {/* HARGA & DISKON */}
+                          {disc > 0 ? (
+                            <div className="text-[11px] space-y-0.5">
+                              <p className="text-slate-400 line-through break-all">
+                                {formatRupiah(price)}
+                              </p>
+                              <p className="text-primary font-semibold break-all">
+                                {formatRupiah(finalPerUnit)}{" "}
+                                <span className="text-red-500">
+                                  (-{disc}%)
+                                </span>
+                              </p>
+                            </div>
+                          ) : (
+                            <p className="text-[11px] text-primary font-semibold break-all">
+                              {formatRupiah(price)}
+                            </p>
                           )}
-                        </span>
+                        </div>
+
+                        <div className="flex items-center justify-between text-[11px] mt-1">
+                          <span className="text-slate-500 dark:text-[var(--text-secondary)]">
+                            Qty: {qty}
+                          </span>
+                          <span className="font-semibold">
+                            {formatRupiah(finalPerUnit * qty)}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* HAPUS */}
+                      <div className="flex flex-col items-end justify-start">
+                        <button
+                          onClick={() => handleDeleteItem(i.id)}
+                          className="p-1 rounded-full text-slate-400 hover:text-red-500 hover:bg-red-50/60 dark:hover:bg-slate-800"
+                        >
+                          <FiTrash2 className="w-3 h-3" />
+                        </button>
                       </div>
                     </div>
-                    <button
-                      onClick={() => handleDeleteItem(i.id)}
-                      className="p-1 rounded-full text-slate-400 hover:text-red-500 hover:bg-red-50/60 dark:hover:bg-slate-800"
-                    >
-                      <FiTrash2 className="w-3 h-3" />
-                    </button>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
 
-          {/* Ringkasan + DP */}
-          <div className="card flex flex-col gap-3">
-            <h2 className="text-sm font-semibold mb-1">Ringkasan & DP</h2>
-
-            <div className="text-xs space-y-1">
-              <div className="flex items-center justify-between">
-                <span>Total harga</span>
-                <span className="font-semibold">
-                  {formatRupiah(totalPrice)}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span>DP ({dpPercent}%)</span>
-                <span className="font-semibold">
-                  {formatRupiah(dpAmount)}
-                </span>
-              </div>
-              <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-[var(--text-secondary)]">
-                <span>Sisa pembayaran</span>
-                <span>{formatRupiah(remainingAmount)}</span>
-              </div>
+          {/* RINGKASAN & PEMBAYARAN */}
+          <div className="card space-y-3">
+            <div className="flex items-center justify-between mb-1">
+              <h2 className="text-sm font-semibold">Ringkasan Pembayaran</h2>
+              {userDoc && (
+                <div className="text-[11px] text-slate-500 dark:text-[var(--text-secondary)]">
+                  Saldo:{" "}
+                  <span className="font-semibold">
+                    {formatRupiah(userDoc.saldo || 0)}
+                  </span>
+                </div>
+              )}
             </div>
 
-            <div className="mt-2">
-              <p className="text-[11px] mb-1">
-                Pilih besaran DP yang ingin kamu bayarkan:
-              </p>
-              <div className="flex items-center gap-2 text-[11px]">
-                {[30, 50, 100].map((val) => (
-                  <button
-                    key={val}
-                    type="button"
-                    onClick={() => setDpPercent(val)}
-                    className={`px-3 py-1 rounded-full border text-xs ${
-                      dpPercent === val
-                        ? "bg-primary text-white border-primary"
-                        : "bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-[var(--text-secondary)]"
-                    }`}
-                  >
-                    {val}%
-                  </button>
-                ))}
+            {/* KOLOM HITUNGAN */}
+            <div className="text-xs space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span>
+                  Harga awal ({totalItems} item
+                  {totalItems > 1 ? "s" : ""})
+                </span>
+                <span className="font-semibold break-all text-right">
+                  {formatRupiah(subtotalBeforeDiscount)}
+                </span>
               </div>
-              <p className="text-[10px] text-slate-500 dark:text-[var(--text-secondary)] mt-1">
-                DP akan langsung dipotong dari saldo kamu. Sisa pembayaran
-                tercatat di riwayat pesanan dan bisa diselesaikan secara offline.
-              </p>
+
+              <div className="flex items-center justify-between">
+                <span>Diskon</span>
+                <span className="font-semibold text-right">
+                  {totalDiscountCut > 0
+                    ? `- ${formatRupiah(totalDiscountCut)}`
+                    : "-"}
+                </span>
+              </div>
+
+              <div className="border-t border-slate-200 dark:border-slate-700 pt-1.5 flex items-center justify-between">
+                <span>Subtotal setelah diskon</span>
+                <span className="font-semibold break-all text-right">
+                  {formatRupiah(subtotalAfterDiscount)}
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <span>Biaya admin QRIS (0,7% + Rp 310)</span>
+                <span className="font-semibold break-all text-right">
+                  {formatRupiah(qrisFee)}
+                </span>
+              </div>
+
+              <div className="border-t border-slate-200 dark:border-slate-700 pt-1.5 flex items-center justify-between">
+                <span className="text-[13px] font-semibold">
+                  Total Bayar
+                </span>
+                <span className="text-[13px] font-bold text-primary break-all text-right">
+                  {formatRupiah(grandTotal)}
+                </span>
+              </div>
             </div>
 
             {message && (
@@ -262,13 +426,22 @@ export default function CartPage() {
               </div>
             )}
 
-            <button
-              onClick={handleCheckout}
-              disabled={processing || !items.length}
-              className="btn-primary w-full mt-2"
-            >
-              {processing ? "Memproses..." : "Bayar DP & Checkout"}
-            </button>
+            <div className="space-y-2 mt-1">
+              <button
+                onClick={handlePayWithQRIS}
+                disabled={!items.length}
+                className="w-full h-10 rounded-full bg-primary text-white text-[13px] font-semibold disabled:opacity-60"
+              >
+                Bayar via QRIS
+              </button>
+              <button
+                onClick={handlePayWithSaldo}
+                disabled={processing || !items.length}
+                className="w-full h-10 rounded-full border border-primary text-primary text-[13px] font-semibold disabled:opacity-60 bg-transparent"
+              >
+                {processing ? "Memproses..." : "Bayar pakai saldo"}
+              </button>
+            </div>
           </div>
         </div>
       </div>
