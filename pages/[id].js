@@ -225,7 +225,6 @@ export default function ProductDetailPage() {
       maximumFractionDigits: 0,
     }).format(Number(value || 0));
 
-  // format singkat: 1,2k / 1,5 jt / 2,3M
   const formatCompact = (value) => {
     const num = Number(value || 0);
     if (num >= 1_000_000_000) {
@@ -240,7 +239,6 @@ export default function ProductDetailPage() {
     return String(num);
   };
 
-  // stok/terjual versi singkat
   const formatCompactNumber = (value) => {
     const num = Number(value || 0);
     if (num >= 1_000_000) {
@@ -357,7 +355,6 @@ export default function ProductDetailPage() {
     }
   };
 
-  // slider controls
   const images = Array.isArray(product?.images) ? product.images : [];
   const hasImages = images.length > 0;
 
@@ -412,7 +409,7 @@ export default function ProductDetailPage() {
 
   return (
     <div className="min-h-screen bg-slate-100 dark:bg-bg-dark text-slate-900 dark:text-[var(--text)] text-sm">
-      {/* NAVBAR ATAS (tetap) */}
+      {/* NAVBAR ATAS */}
       <header className="w-full border-b border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-bg-dark/80 backdrop-blur sticky top-0 z-20">
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -619,7 +616,7 @@ export default function ProductDetailPage() {
             </div>
           </div>
 
-          {/* TITLE + HARGA + DISKON – super rapet, ada garis antara title & harga */}
+          {/* TITLE + HARGA + DISKON */}
           <div className="space-y-0.5 py-1.5 border-b border-slate-200 dark:border-slate-800">
             <button
               type="button"
@@ -635,7 +632,8 @@ export default function ProductDetailPage() {
               </h1>
             </button>
 
-            <div className="mt-0.5 pt-0.5 border-t border-slate-200 dark:border-slate-800">
+            {/* GARIS PEMBATAS JELAS ANTARA TITLE & NOMINAL */}
+            <div className="mt-1 border-t border-slate-300 dark:border-slate-700 pt-1">
               <button
                 type="button"
                 onClick={() => setShowFullPrice((v) => !v)}
@@ -650,7 +648,7 @@ export default function ProductDetailPage() {
                     {formatRupiah(finalPrice)}
                   </div>
                   {discount > 0 && (
-                    <span className="inline-flex items-center h-6 px-2 rounded-md bg-red-500 text-white text-base font-semibold leading-none">
+                    <span className="inline-flex items-center justify-center h-6 px-2 rounded-[4px] bg-red-500 text-white text-base font-semibold leading-none">
                       -{discount}%
                     </span>
                   )}
@@ -668,7 +666,7 @@ export default function ProductDetailPage() {
             </div>
           </div>
 
-          {/* DESKRIPSI – tap box untuk expand */}
+          {/* DESKRIPSI */}
           <div className="space-y-1 py-2 border-b border-slate-200 dark:border-slate-800">
             <div className="text-[11px] font-semibold text-slate-500 dark:text-[var(--text-secondary)]">
               Deskripsi Produk
@@ -685,7 +683,7 @@ export default function ProductDetailPage() {
             </div>
           </div>
 
-          {/* KATEGORI – slider horizontal */}
+          {/* KATEGORI */}
           <div className="space-y-1 py-2 border-b border-slate-200 dark:border-slate-800">
             <div className="text-[11px] font-semibold text-slate-500 dark:text-[var(--text-secondary)]">
               Kategori
@@ -731,7 +729,6 @@ export default function ProductDetailPage() {
 
         {/* ULASAN & RATING + KOMENTAR */}
         <section className="card p-3 sm:p-3.5 space-y-2.5">
-          {/* header */}
           <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2">
             <div className="space-y-0.5">
               <h2 className="text-sm font-semibold">Ulasan &amp; Rating</h2>
@@ -757,7 +754,6 @@ export default function ProductDetailPage() {
             </button>
           </div>
 
-          {/* form komentar */}
           <form
             onSubmit={handleAddComment}
             className="space-y-2 border-b border-slate-200 dark:border-slate-800 pb-2.5"
@@ -809,7 +805,6 @@ export default function ProductDetailPage() {
             </div>
           </form>
 
-          {/* daftar komentar - slider kalau banyak */}
           <div
             className={`space-y-1.5 ${
               comments.length > 4 ? "max-h-60 overflow-y-auto pr-1" : ""
@@ -829,7 +824,6 @@ export default function ProductDetailPage() {
                     key={c.id}
                     className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/40 text-[11px]"
                   >
-                    {/* header nama + tanggal + garis */}
                     <div className="px-3 pt-1.5 pb-1 border-b border-slate-200 dark:border-slate-800">
                       <div className="flex items-center gap-2">
                         <span className="font-semibold max-w-[120px] truncate">
@@ -846,7 +840,6 @@ export default function ProductDetailPage() {
                       </div>
                     </div>
 
-                    {/* isi komentar - box scroll, tap untuk expand */}
                     <div className="px-3 pb-2 pt-1">
                       <div
                         onClick={() => handleToggleCommentExpand(c.id)}
