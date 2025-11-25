@@ -12,6 +12,7 @@ import {
   addDoc,
   serverTimestamp,
   runTransaction,
+  updateDoc,
 } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 import { FiArrowLeft, FiTrash2 } from "react-icons/fi";
@@ -70,6 +71,13 @@ export default function CartPage() {
     }
   };
 
+  const formatRupiah = (value) =>
+    new Intl.NumberFormat("id-ID", {
+      style: "currency",
+      currency: "IDR",
+      maximumFractionDigits: 0,
+    }).format(Number(value || 0));
+
   const handleDeleteItem = async (id) => {
     if (!currentUser) return;
     setErrorMsg("");
@@ -82,12 +90,24 @@ export default function CartPage() {
     }
   };
 
-  const formatRupiah = (value) =>
-    new Intl.NumberFormat("id-ID", {
-      style: "currency",
-      currency: "IDR",
-      maximumFractionDigits: 0,
-    }).format(Number(value || 0));
+  const handleChangeQty = async (item, delta) => {
+    if (!currentUser) return;
+    const currentQty = Number(item.qty || 1);
+    const newQty = currentQty + delta;
+    if (newQty < 1) return; // jangan turun di bawah 1
+
+    setErrorMsg("");
+    try {
+      const ref = doc(db, "users", currentUser.uid, "cart", item.id);
+      await updateDoc(ref, { qty: newQty });
+      setItems((prev) =>
+        prev.map((p) => (p.id === item.id ? { ...p, qty: newQty } : p))
+      );
+    } catch (err) {
+      console.error(err);
+      setErrorMsg("Gagal mengubah jumlah.");
+    }
+  };
 
   // TOTAL ITEM
   const totalItems = useMemo(
@@ -95,15 +115,13 @@ export default function CartPage() {
     [items]
   );
 
-  // HITUNGAN HARGA & DISKON
+  // HITUNGAN HARGA & DISKON (per keranjang)
   const {
     subtotalBeforeDiscount,
-    totalDiscountPercent,
     totalDiscountCut,
     subtotalAfterDiscount,
   } = useMemo(() => {
     let before = 0;
-    let discPercentSum = 0;
     let discCut = 0;
 
     items.forEach((i) => {
@@ -113,11 +131,10 @@ export default function CartPage() {
 
       const lineBefore = price * qty;
       before += lineBefore;
-      discPercentSum += disc; // cuma buat info (bukan rata-rata bobot)
 
       if (disc > 0) {
-        const cut = Math.round((price * disc) / 100) * qty;
-        discCut += cut;
+        const perUnitCut = Math.round((price * disc) / 100);
+        discCut += perUnitCut * qty;
       }
     });
 
@@ -125,13 +142,12 @@ export default function CartPage() {
 
     return {
       subtotalBeforeDiscount: before,
-      totalDiscountPercent: discPercentSum, // hanya info; dipakai di UI
       totalDiscountCut: discCut,
       subtotalAfterDiscount: after,
     };
   }, [items]);
 
-  // Fee admin QRIS: 0.7% + Rp 310, dihitung dari subtotal setelah diskon
+  // Fee admin QRIS: 0.7% + Rp 310 dari subtotal setelah diskon
   const qrisFee = useMemo(
     () =>
       subtotalAfterDiscount > 0
@@ -290,63 +306,79 @@ export default function CartPage() {
                   return (
                     <div
                       key={i.id}
-                      className="rounded-2xl bg-slate-900/5 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800 p-3 flex gap-3"
+                      className="rounded-2xl bg-slate-900/5 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800 p-3"
                     >
-                      {/* KOTAK GAMBAR – cuma border */}
-                      <div className="flex flex-col items-center gap-2">
-                        <div className="h-16 w-16 rounded-xl border border-slate-300 dark:border-slate-700" />
-                        <Link
-                          href={`/${i.productId}`}
-                          className="text-[11px] text-primary underline"
-                        >
-                          Lihat produk
-                        </Link>
-                      </div>
+                      <div className="flex gap-3">
+                        {/* KOTAK GAMBAR – cuma border */}
+                        <div className="flex flex-col items-center gap-2">
+                          <div className="h-16 w-16 rounded-xl border border-slate-300 dark:border-slate-700" />
+                        </div>
 
-                      {/* INFO PRODUK */}
-                      <div className="flex-1 min-w-0 flex flex-col justify-between gap-1">
-                        <div className="min-w-0">
+                        {/* INFO PRODUK */}
+                        <div className="flex-1 min-w-0">
                           <p className="text-sm font-semibold truncate">
                             {i.name}
                           </p>
 
-                          {/* HARGA & DISKON */}
+                          {/* HARGA & DISKON – rapi */}
                           {disc > 0 ? (
-                            <div className="text-[11px] space-y-0.5">
-                              <p className="text-slate-400 line-through break-all">
+                            <div className="mt-1 text-[11px] space-y-0.5">
+                              <p className="text-slate-400 line-through">
                                 {formatRupiah(price)}
                               </p>
-                              <p className="text-primary font-semibold break-all">
-                                {formatRupiah(finalPerUnit)}{" "}
-                                <span className="text-red-500">
-                                  (-{disc}%)
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="text-primary font-semibold">
+                                  {formatRupiah(finalPerUnit)}
                                 </span>
-                              </p>
+                                <span className="px-1.5 py-[2px] rounded-full bg-red-500 text-white text-[10px] font-semibold">
+                                  -{disc}%
+                                </span>
+                              </div>
                             </div>
                           ) : (
-                            <p className="text-[11px] text-primary font-semibold break-all">
+                            <p className="mt-1 text-[11px] text-primary font-semibold">
                               {formatRupiah(price)}
                             </p>
                           )}
                         </div>
-
-                        <div className="flex items-center justify-between text-[11px] mt-1">
-                          <span className="text-slate-500 dark:text-[var(--text-secondary)]">
-                            Qty: {qty}
-                          </span>
-                          <span className="font-semibold">
-                            {formatRupiah(finalPerUnit * qty)}
-                          </span>
-                        </div>
                       </div>
 
-                      {/* HAPUS */}
-                      <div className="flex flex-col items-end justify-start">
+                      {/* BAWAH: LIHAT PRODUK + QTY (-/+) + HAPUS */}
+                      <div className="mt-2 flex items-center justify-between text-[11px]">
+                        <Link
+                          href={`/${i.productId}`}
+                          className="text-primary underline"
+                        >
+                          Lihat produk
+                        </Link>
+
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleChangeQty(i, -1)}
+                            disabled={qty <= 1}
+                            className="h-7 w-7 rounded-full border border-slate-300 dark:border-slate-600 flex items-center justify-center text-xs disabled:opacity-50"
+                          >
+                            -
+                          </button>
+                          <span className="w-6 text-center text-xs font-semibold">
+                            {qty}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleChangeQty(i, 1)}
+                            className="h-7 w-7 rounded-full border border-slate-300 dark:border-slate-600 flex items-center justify-center text-xs"
+                          >
+                            +
+                          </button>
+                        </div>
+
                         <button
                           onClick={() => handleDeleteItem(i.id)}
-                          className="p-1 rounded-full text-slate-400 hover:text-red-500 hover:bg-red-50/60 dark:hover:bg-slate-800"
+                          className="inline-flex items-center gap-1 text-red-500 hover:opacity-80"
                         >
                           <FiTrash2 className="w-3 h-3" />
+                          <span>Hapus</span>
                         </button>
                       </div>
                     </div>
@@ -370,21 +402,21 @@ export default function CartPage() {
               )}
             </div>
 
-            {/* KOLOM HITUNGAN */}
+            {/* KOLOM HITUNGAN – rapi seperti payment */}
             <div className="text-xs space-y-1.5">
               <div className="flex items-center justify-between">
                 <span>
                   Harga awal ({totalItems} item
                   {totalItems > 1 ? "s" : ""})
                 </span>
-                <span className="font-semibold break-all text-right">
+                <span className="font-semibold text-right">
                   {formatRupiah(subtotalBeforeDiscount)}
                 </span>
               </div>
 
               <div className="flex items-center justify-between">
-                <span>Diskon</span>
-                <span className="font-semibold text-right">
+                <span>Potongan diskon</span>
+                <span className="font-semibold text-right text-red-500">
                   {totalDiscountCut > 0
                     ? `- ${formatRupiah(totalDiscountCut)}`
                     : "-"}
@@ -393,14 +425,14 @@ export default function CartPage() {
 
               <div className="border-t border-slate-200 dark:border-slate-700 pt-1.5 flex items-center justify-between">
                 <span>Subtotal setelah diskon</span>
-                <span className="font-semibold break-all text-right">
+                <span className="font-semibold text-right">
                   {formatRupiah(subtotalAfterDiscount)}
                 </span>
               </div>
 
               <div className="flex items-center justify-between">
                 <span>Biaya admin QRIS (0,7% + Rp 310)</span>
-                <span className="font-semibold break-all text-right">
+                <span className="font-semibold text-right">
                   {formatRupiah(qrisFee)}
                 </span>
               </div>
@@ -409,7 +441,7 @@ export default function CartPage() {
                 <span className="text-[13px] font-semibold">
                   Total Bayar
                 </span>
-                <span className="text-[13px] font-bold text-primary break-all text-right">
+                <span className="text-[13px] font-bold text-primary text-right">
                   {formatRupiah(grandTotal)}
                 </span>
               </div>
