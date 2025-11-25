@@ -401,9 +401,6 @@ export default function ProductDetailPage() {
   const finalPrice =
     discount > 0 ? Math.round(price - (price * discount) / 100) : price;
 
-  const titleTooLong = (product.name || "").length > 40;
-  const descTooLong = (product.description || "").length > 200;
-
   const categories = Array.isArray(product.categories)
     ? product.categories
     : product.category
@@ -531,7 +528,7 @@ export default function ProductDetailPage() {
         {/* CARD PRODUK */}
         <section className="card p-3 sm:p-3.5 space-y-3">
           {/* gambar + slider + thumb */}
-          <div className="space-y-1.5 pb-1">
+          <div className="space-y-1 pb-0.5">
             {hasImages ? (
               <div className="relative w-full rounded-2xl overflow-hidden bg-slate-100 dark:bg-slate-900 aspect-[4/3]">
                 <div
@@ -577,7 +574,7 @@ export default function ProductDetailPage() {
             )}
 
             {hasImages && (
-              <div className="flex items-center gap-2 overflow-x-auto pb-0.5">
+              <div className="flex items-center gap-2 overflow-x-auto pb-0">
                 {images.map((img, idx) => (
                   <button
                     key={idx}
@@ -601,10 +598,10 @@ export default function ProductDetailPage() {
             )}
           </div>
 
-          {/* TERJUAL / STOK dibungkus pill + garis atas & bawah, SUPER RAPET */}
-          <div className="flex items-center justify-between gap-2 text-[11px] text-slate-600 dark:text-[var(--text-secondary)] py-1.5 border-y border-slate-200 dark:border-slate-800">
+          {/* TERJUAL / STOK – persegi panjang + garis pembatas */}
+          <div className="flex items-center justify-between gap-2 text-[11px] text-slate-600 dark:text-[var(--text-secondary)] py-1 border-y border-slate-200 dark:border-slate-800">
             <div className="flex-1 flex justify-start">
-              <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
+              <span className="inline-flex items-center px-3 py-0.5 rounded-md bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
                 <span className="opacity-70 mr-1">Terjual</span>
                 <span className="font-semibold">
                   {formatCompactNumber(product.sold || 0)}
@@ -613,7 +610,7 @@ export default function ProductDetailPage() {
             </div>
             <span className="h-4 w-px bg-slate-200 dark:bg-slate-700" />
             <div className="flex-1 flex justify-end">
-              <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
+              <span className="inline-flex items-center px-3 py-0.5 rounded-md bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
                 <span className="opacity-70 mr-1">Stok</span>
                 <span className="font-semibold">
                   {formatCompactNumber(product.stock || 0)}
@@ -622,8 +619,8 @@ export default function ProductDetailPage() {
             </div>
           </div>
 
-          {/* TITLE + HARGA – super rapet, diskon dirapetin & sama ukuran */}
-          <div className="space-y-1 py-1.5 border-b border-slate-200 dark:border-slate-800">
+          {/* TITLE + HARGA + DISKON – super rapet, ada garis antara title & harga */}
+          <div className="space-y-0.5 py-1.5 border-b border-slate-200 dark:border-slate-800">
             <button
               type="button"
               onClick={() => setShowFullTitle((v) => !v)}
@@ -638,19 +635,25 @@ export default function ProductDetailPage() {
               </h1>
             </button>
 
-            {/* PEMBATAS ANTARA TITLE & NOMINAL */}
-            <div className="mt-1 pt-1 flex items-center justify-between gap-1.5 border-t border-slate-200 dark:border-slate-800">
+            <div className="mt-0.5 pt-0.5 border-t border-slate-200 dark:border-slate-800">
               <button
                 type="button"
                 onClick={() => setShowFullPrice((v) => !v)}
-                className="text-left flex-1 cursor-pointer"
+                className="w-full text-left cursor-pointer"
               >
-                <div
-                  className={`text-base font-bold text-primary ${
-                    showFullPrice ? "" : "truncate"
-                  }`}
-                >
-                  {formatRupiah(finalPrice)}
+                <div className="flex items-center gap-1.5">
+                  <div
+                    className={`text-base font-bold text-primary ${
+                      showFullPrice ? "" : "truncate"
+                    }`}
+                  >
+                    {formatRupiah(finalPrice)}
+                  </div>
+                  {discount > 0 && (
+                    <span className="inline-flex items-center h-6 px-2 rounded-md bg-red-500 text-white text-base font-semibold leading-none">
+                      -{discount}%
+                    </span>
+                  )}
                 </div>
                 {discount > 0 && (
                   <div
@@ -662,16 +665,10 @@ export default function ProductDetailPage() {
                   </div>
                 )}
               </button>
-
-              {discount > 0 && (
-                <span className="px-1.5 py-0 rounded-full text-base bg-red-500 text-white font-semibold leading-none flex items-center">
-                  -{discount}%
-                </span>
-              )}
             </div>
           </div>
 
-          {/* DESKRIPSI – tap box untuk expand, rapet */}
+          {/* DESKRIPSI – tap box untuk expand */}
           <div className="space-y-1 py-2 border-b border-slate-200 dark:border-slate-800">
             <div className="text-[11px] font-semibold text-slate-500 dark:text-[var(--text-secondary)]">
               Deskripsi Produk
@@ -688,7 +685,7 @@ export default function ProductDetailPage() {
             </div>
           </div>
 
-          {/* KATEGORI – slider horizontal, rapet */}
+          {/* KATEGORI – slider horizontal */}
           <div className="space-y-1 py-2 border-b border-slate-200 dark:border-slate-800">
             <div className="text-[11px] font-semibold text-slate-500 dark:text-[var(--text-secondary)]">
               Kategori
