@@ -115,7 +115,7 @@ export default function CartPage() {
     [items]
   );
 
-  // HITUNGAN HARGA & DISKON
+  // HITUNGAN HARGA & DISKON (untuk banyak produk sekaligus)
   const {
     subtotalBeforeDiscount,
     totalDiscountCut,
@@ -402,57 +402,46 @@ export default function CartPage() {
               )}
             </div>
 
-            {/* KOLOM HITUNGAN – sesuai urutan: harga, diskon, fee, total */}
+            {/* KOLOM HITUNGAN – pendek, jelas, ada pembatas */}
             <div className="text-xs space-y-1.5">
-              {/* 1. Harga awal (coret) */}
+              {/* 1. Barang (sebelum diskon) */}
               <div className="flex items-center justify-between">
-                <span>Harga awal</span>
+                <span>Barang ({totalItems})</span>
                 <span className="font-semibold text-slate-400 line-through text-right">
                   {formatRupiah(subtotalBeforeDiscount)}
                 </span>
               </div>
 
-              {/* 2. Diskon + harga terbaru (coret) */}
+              {/* 2. Diskon (pengurangan) */}
               <div className="flex items-center justify-between">
                 <span>Diskon</span>
                 <span className="font-semibold text-red-500 text-right">
-                  {totalDiscountCut > 0
-                    ? `- ${formatRupiah(totalDiscountCut)}`
-                    : "-"}
+                  {totalDiscountCut > 0 ? formatRupiah(totalDiscountCut) : "-"}
                 </span>
               </div>
-              {totalDiscountCut > 0 && (
-                <div className="flex items-center justify-between text-[11px]">
-                  <span className="pl-4 text-slate-500">
-                    Harga setelah diskon
-                  </span>
-                  <span className="font-semibold text-slate-400 line-through text-right">
-                    {formatRupiah(subtotalAfterDiscount)}
-                  </span>
-                </div>
-              )}
 
-              {/* 3. Harga terbaru + fee admin (coret) */}
+              {/* PEMBATAS */}
+              <div className="border-t border-slate-200 dark:border-slate-700 pt-1.5 flex items-center justify-between">
+                <span>Subtotal</span>
+                <span className="font-semibold text-right">
+                  {formatRupiah(subtotalAfterDiscount)}
+                </span>
+              </div>
+
+              {/* 3. Fee admin (tambahan) */}
               <div className="flex items-center justify-between">
-                <span>Biaya admin QRIS (0,7% + Rp 310)</span>
+                <span>Fee QRIS</span>
                 <span className="font-semibold text-right">
                   {formatRupiah(qrisFee)}
                 </span>
               </div>
-              {(subtotalAfterDiscount > 0 || qrisFee > 0) && (
-                <div className="flex items-center justify-between text-[11px]">
-                  <span className="pl-4 text-slate-500">
-                    Harga + fee admin
-                  </span>
-                  <span className="font-semibold text-slate-400 line-through text-right">
-                    {formatRupiah(grandTotal)}
-                  </span>
-                </div>
-              )}
+              <p className="text-[10px] text-slate-500 dark:text-[var(--text-secondary)] text-right">
+                0,7% dari subtotal + Rp 310
+              </p>
 
-              {/* 4. TOTAL: hasil akhir */}
+              {/* PEMBATAS TERAKHIR + TOTAL */}
               <div className="border-t border-slate-200 dark:border-slate-700 pt-1.5 flex items-center justify-between">
-                <span className="text-[13px] font-semibold">Total</span>
+                <span className="text-[13px] font-semibold">Total bayar</span>
                 <span className="text-[13px] font-bold text-primary text-right">
                   {formatRupiah(grandTotal)}
                 </span>
