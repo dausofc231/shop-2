@@ -335,7 +335,7 @@ export default function ProductDetailPage() {
       return;
     }
     if (!id || !product) return;
-    if (cartBusy) return;
+    if (cartBusy || cartAdded) return;
     setCartBusy(true);
     try {
       const cartCol = collection(db, "users", currentUser.uid, "cart");
@@ -347,7 +347,7 @@ export default function ProductDetailPage() {
         createdAt: serverTimestamp(),
       });
       await loadCartInfo(currentUser.uid);
-      setCartAdded(true);
+      setCartAdded(true); // blok double klik
     } catch (err) {
       console.error(err);
     } finally {
@@ -406,6 +406,19 @@ export default function ProductDetailPage() {
 
   const likeDisplay = formatCompact(likeCount);
   const commentDisplay = formatCompact(comments.length);
+
+  const addToCartDisabled =
+    cartBusy || product.stock <= 0 || cartAdded;
+
+  const addToCartLabel = !currentUser
+    ? "Tambah ke keranjang"
+    : product.stock <= 0
+    ? "Stok habis"
+    : cartAdded
+    ? "Sudah di keranjang"
+    : cartBusy
+    ? "Menambahkan..."
+    : "Tambah ke keranjang";
 
   return (
     <div className="min-h-screen bg-slate-100 dark:bg-bg-dark text-slate-900 dark:text-[var(--text)] text-sm">
@@ -521,7 +534,7 @@ export default function ProductDetailPage() {
       </header>
 
       {/* CONTENT */}
-      <main className="max-w-5xl mx-auto px-4 py-4 space-y-3">
+      <main className="max-w-5xl mx-auto px-4 py-4 space-y-3 pb-20">
         {/* CARD PRODUK */}
         <section className="card p-3 sm:p-3.5 space-y-3">
           {/* gambar + slider + thumb */}
@@ -595,7 +608,7 @@ export default function ProductDetailPage() {
             )}
           </div>
 
-          {/* TERJUAL / STOK – persegi panjang + garis pembatas */}
+          {/* TERJUAL / STOK */}
           <div className="flex items-center justify-between gap-2 text-[11px] text-slate-600 dark:text-[var(--text-secondary)] py-1 border-y border-slate-200 dark:border-slate-800">
             <div className="flex-1 flex justify-start">
               <span className="inline-flex items-center px-3 py-0.5 rounded-md bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
@@ -632,7 +645,6 @@ export default function ProductDetailPage() {
               </h1>
             </button>
 
-            {/* GARIS PEMBATAS JELAS ANTARA TITLE & NOMINAL */}
             <div className="mt-1 border-t border-slate-300 dark:border-slate-700 pt-1">
               <button
                 type="button"
@@ -703,26 +715,6 @@ export default function ProductDetailPage() {
                   </span>
                 ))}
               </div>
-            )}
-          </div>
-
-          {/* TOMBOL KERANJANG */}
-          <div className="pt-1">
-            <button
-              onClick={handleAddToCart}
-              disabled={!currentUser || cartBusy || product.stock <= 0}
-              className="w-full inline-flex items-center justify-center gap-2 rounded-full bg-primary text-white text-[11px] font-semibold py-2 disabled:opacity-60"
-            >
-              {cartBusy
-                ? "Menambahkan..."
-                : cartAdded
-                ? "Sudah di keranjang"
-                : "Tambah ke keranjang"}
-            </button>
-            {!currentUser && (
-              <p className="mt-1 text-[10px] text-slate-500 dark:text-[var(--text-secondary)]">
-                Login dulu untuk menambah ke keranjang.
-              </p>
             )}
           </div>
         </section>
@@ -859,6 +851,31 @@ export default function ProductDetailPage() {
           </div>
         </section>
       </main>
+
+      {/* NAVBAR BAWAH – ADD TO CART */}
+      <footer className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-bg-dark/95 backdrop-blur">
+        <div className="max-w-5xl mx-auto px-4 py-2 flex items-center gap-3">
+          <div className="flex-1 text-xs text-slate-600 dark:text-[var(--text-secondary)]">
+            <div className="font-semibold">
+              {product.name?.length > 30
+                ? product.name.slice(0, 30) + "..."
+                : product.name}
+            </div>
+            <div className="text-primary font-bold">
+              {formatRupiah(finalPrice)}
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={handleAddToCart}
+            disabled={addToCartDisabled}
+            className="inline-flex items-center justify-center gap-2 px-4 h-10 rounded-full bg-primary text-white text-xs font-semibold disabled:opacity-60"
+          >
+            <FiShoppingCart className="w-4 h-4" />
+            <span>{addToCartLabel}</span>
+          </button>
+        </div>
+      </footer>
     </div>
   );
 }
