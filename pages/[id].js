@@ -48,15 +48,15 @@ export default function ProductDetailPage() {
   const [liked, setLiked] = useState(false);
   const [likeBusy, setLikeBusy] = useState(false);
 
-  // title + deskripsi expand
+  // title + deskripsi + price expand
   const [showFullTitle, setShowFullTitle] = useState(false);
   const [showFullDesc, setShowFullDesc] = useState(false);
+  const [showFullPrice, setShowFullPrice] = useState(false);
 
   // komentar
   const [commentName, setCommentName] = useState("");
   const [commentText, setCommentText] = useState("");
   const [comments, setComments] = useState([]);
-  const [showAllComments, setShowAllComments] = useState(false);
   const [savingComment, setSavingComment] = useState(false);
   const [expandedComments, setExpandedComments] = useState({});
 
@@ -225,7 +225,22 @@ export default function ProductDetailPage() {
       maximumFractionDigits: 0,
     }).format(Number(value || 0));
 
-  // stok/terjual versi singkat: 1500000 -> "1,5 jt"
+  // format singkat: 1.2k, 1,5 jt, 2,3M
+  const formatCompact = (value) => {
+    const num = Number(value || 0);
+    if (num >= 1_000_000_000) {
+      return (num / 1_000_000_000).toFixed(1).replace(".", ",") + "M";
+    }
+    if (num >= 1_000_000) {
+      return (num / 1_000_000).toFixed(1).replace(".", ",") + " jt";
+    }
+    if (num >= 1_000) {
+      return (num / 1_000).toFixed(1).replace(".", ",") + "k";
+    }
+    return String(num);
+  };
+
+  // stok/terjual versi singkat
   const formatCompactNumber = (value) => {
     const num = Number(value || 0);
     if (num >= 1_000_000) {
@@ -345,7 +360,6 @@ export default function ProductDetailPage() {
   // slider controls
   const images = Array.isArray(product?.images) ? product.images : [];
   const hasImages = images.length > 0;
-  const mainImage = hasImages ? images[currentImageIndex] : null;
 
   const goPrevImage = () => {
     if (!hasImages) return;
@@ -390,17 +404,18 @@ export default function ProductDetailPage() {
   const titleTooLong = (product.name || "").length > 40;
   const descTooLong = (product.description || "").length > 200;
 
-  const visibleComments = showAllComments ? comments : comments.slice(0, 3);
-
   const categories = Array.isArray(product.categories)
     ? product.categories
     : product.category
     ? [product.category]
     : [];
 
+  const likeDisplay = formatCompact(likeCount);
+  const commentDisplay = formatCompact(comments.length);
+
   return (
     <div className="min-h-screen bg-slate-100 dark:bg-bg-dark text-slate-900 dark:text-[var(--text)] text-sm">
-      {/* NAVBAR ATAS (tetap punyaku) */}
+      {/* NAVBAR ATAS (punyamu yg tetap) */}
       <header className="w-full border-b border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-bg-dark/80 backdrop-blur sticky top-0 z-20">
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -515,41 +530,51 @@ export default function ProductDetailPage() {
       <main className="max-w-5xl mx-auto px-4 py-4 space-y-4">
         {/* CARD PRODUK */}
         <section className="card p-3 sm:p-4 space-y-4">
-          {/* gambar + slider + thumb (mirip UI mu) */}
-          <div className="space-y-2">
-            <div className="relative w-full rounded-2xl overflow-hidden bg-slate-100 dark:bg-slate-900 aspect-[4/3]">
-              {mainImage ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={mainImage}
-                  alt={product.name}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center text-xs text-slate-400">
-                  No image
+          {/* gambar + slider + thumb */}
+          <div className="space-y-2 pb-3 border-b border-slate-200 dark:border-slate-800">
+            {hasImages ? (
+              <div className="relative w-full rounded-2xl overflow-hidden bg-slate-100 dark:bg-slate-900 aspect-[4/3]">
+                <div
+                  className="flex h-full w-full transition-transform duration-300"
+                  style={{
+                    transform: `translateX(-${currentImageIndex * 100}%)`,
+                  }}
+                >
+                  {images.map((img, idx) => (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      key={idx}
+                      src={img}
+                      alt={`image-${idx}`}
+                      className="w-full h-full flex-shrink-0 object-cover"
+                    />
+                  ))}
                 </div>
-              )}
 
-              {hasImages && images.length > 1 && (
-                <>
-                  <button
-                    type="button"
-                    onClick={goPrevImage}
-                    className="absolute left-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-black/40 flex items-center justify-center text-white"
-                  >
-                    <FiChevronLeft />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={goNextImage}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-black/40 flex items-center justify-center text-white"
-                  >
-                    <FiChevronRight />
-                  </button>
-                </>
-              )}
-            </div>
+                {images.length > 1 && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={goPrevImage}
+                      className="absolute left-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-black/40 flex items-center justify-center text-white"
+                    >
+                      <FiChevronLeft />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={goNextImage}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-black/40 flex items-center justify-center text-white"
+                    >
+                      <FiChevronRight />
+                    </button>
+                  </>
+                )}
+              </div>
+            ) : (
+              <div className="relative w-full rounded-2xl overflow-hidden bg-slate-100 dark:bg-slate-900 aspect-[4/3] flex items-center justify-center text-xs text-slate-400">
+                No image
+              </div>
+            )}
 
             {hasImages && (
               <div className="flex items-center gap-2 overflow-x-auto pb-1">
@@ -576,15 +601,16 @@ export default function ProductDetailPage() {
             )}
           </div>
 
-          {/* TERJUAL / STOK */}
-          <div className="flex items-center justify-between text-[11px] text-slate-600 dark:text-[var(--text-secondary)]">
-            <span>
+          {/* TERJUAL / STOK dengan garis & garis vertikal */}
+          <div className="flex items-center justify-between text-[11px] text-slate-600 dark:text-[var(--text-secondary)] py-2 border-b border-slate-200 dark:border-slate-800">
+            <span className="flex-1 text-left">
               Terjual:{" "}
               <span className="font-semibold">
                 {formatCompactNumber(product.sold || 0)}
               </span>
             </span>
-            <span>
+            <span className="h-4 w-px bg-slate-200 dark:bg-slate-700" />
+            <span className="flex-1 text-right">
               Stok:{" "}
               <span className="font-semibold">
                 {formatCompactNumber(product.stock || 0)}
@@ -592,31 +618,46 @@ export default function ProductDetailPage() {
             </span>
           </div>
 
-          {/* TITLE + HARGA */}
-          <div className="space-y-1 border-t border-slate-200 dark:border-slate-800 pt-3">
+          {/* TITLE + HARGA dengan garis, tap utk expand */}
+          <div className="space-y-2 py-3 border-b border-slate-200 dark:border-slate-800">
             <button
               type="button"
               onClick={() => setShowFullTitle((v) => !v)}
-              className="text-left"
+              className="text-left w-full"
             >
-              <h1 className="text-base font-semibold text-slate-900 dark:text-[var(--text)] line-clamp-1">
-                {showFullTitle || !titleTooLong
-                  ? product.name
-                  : (product.name || "").slice(0, 40) + "..."}
+              <h1
+                className={`text-base font-semibold text-slate-900 dark:text-[var(--text)] ${
+                  showFullTitle ? "" : "line-clamp-1"
+                }`}
+              >
+                {product.name}
               </h1>
             </button>
 
-            <div className="flex items-center justify-between gap-2 mt-1">
-              <div>
-                <div className="text-lg font-bold text-primary">
+            <div className="flex items-center justify-between gap-2">
+              <button
+                type="button"
+                onClick={() => setShowFullPrice((v) => !v)}
+                className="text-left flex-1 cursor-pointer"
+              >
+                <div
+                  className={`text-lg font-bold text-primary ${
+                    showFullPrice ? "" : "truncate"
+                  }`}
+                >
                   {formatRupiah(finalPrice)}
                 </div>
                 {discount > 0 && (
-                  <div className="text-[11px] text-slate-400 line-through">
+                  <div
+                    className={`text-[11px] text-slate-400 line-through ${
+                      showFullPrice ? "" : "truncate"
+                    }`}
+                  >
                     {formatRupiah(price)}
                   </div>
                 )}
-              </div>
+              </button>
+
               {discount > 0 && (
                 <span className="px-2 py-0.5 rounded-full text-[11px] bg-red-500 text-white font-semibold">
                   -{discount}%
@@ -625,35 +666,25 @@ export default function ProductDetailPage() {
             </div>
           </div>
 
-          {/* DESKRIPSI - BOX SLIDER + SCROLL */}
-          <div className="space-y-2 border-t border-slate-200 dark:border-slate-800 pt-3">
-            <div className="text-[11px] font-semibold text-slate-500 dark:text-[var(--text-secondary)] mb-1">
+          {/* DESKRIPSI - BOX SLIDER + SCROLL, tap box utk expand */}
+          <div className="space-y-2 py-3 border-b border-slate-200 dark:border-slate-800">
+            <div className="text-[11px] font-semibold text-slate-500 dark:text-[var(--text-secondary)]">
               Deskripsi Produk
             </div>
             <div
+              onClick={() => setShowFullDesc((v) => !v)}
               className={`w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/40 text-xs text-slate-700 dark:text-[var(--text-secondary)] p-2 whitespace-pre-line break-words ${
                 showFullDesc ? "max-h-64" : "max-h-32"
-              } overflow-y-auto`}
+              } overflow-y-auto cursor-pointer`}
             >
               {product.description
                 ? product.description
                 : "Belum ada deskripsi untuk produk ini."}
             </div>
-            {product.description && descTooLong && (
-              <button
-                type="button"
-                onClick={() => setShowFullDesc((v) => !v)}
-                className="text-[11px] text-primary underline"
-              >
-                {showFullDesc
-                  ? "Sembunyikan sebagian"
-                  : "Lihat deskripsi lengkap"}
-              </button>
-            )}
           </div>
 
-          {/* KATEGORI */}
-          <div className="space-y-2 border-t border-slate-200 dark:border-slate-800 pt-3">
+          {/* KATEGORI – slider horizontal */}
+          <div className="space-y-2 py-3 border-b border-slate-200 dark:border-slate-800">
             <div className="text-[11px] font-semibold text-slate-500 dark:text-[var(--text-secondary)]">
               Kategori
             </div>
@@ -662,11 +693,11 @@ export default function ProductDetailPage() {
                 -
               </div>
             ) : (
-              <div className="flex flex-wrap gap-1.5">
+              <div className="overflow-x-auto whitespace-nowrap pb-1">
                 {categories.map((cat, idx) => (
                   <span
                     key={idx}
-                    className="px-2 py-1 rounded-full bg-slate-100 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 text-[11px]"
+                    className="inline-flex items-center px-2 py-1 mr-1.5 rounded-full bg-slate-100 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 text-[11px]"
                   >
                     {cat}
                   </span>
@@ -676,7 +707,7 @@ export default function ProductDetailPage() {
           </div>
 
           {/* TOMBOL KERANJANG */}
-          <div className="border-t border-slate-200 dark:border-slate-800 pt-3">
+          <div className="pt-2">
             <button
               onClick={handleAddToCart}
               disabled={!currentUser || cartBusy || product.stock <= 0}
@@ -703,7 +734,7 @@ export default function ProductDetailPage() {
             <div>
               <h2 className="text-sm font-semibold">Ulasan &amp; Rating</h2>
               <p className="text-[11px] text-slate-500 dark:text-[var(--text-secondary)]">
-                {comments.length} komentar dari pengguna
+                {commentDisplay} komentar dari pengguna
               </p>
             </div>
             <button
@@ -719,7 +750,7 @@ export default function ProductDetailPage() {
                 }
               />
               <span>
-                {likeCount} | {comments.length} komentar
+                {likeDisplay} | {commentDisplay}
               </span>
             </button>
           </div>
@@ -776,14 +807,18 @@ export default function ProductDetailPage() {
             </div>
           </form>
 
-          {/* daftar komentar */}
-          <div className="space-y-2">
-            {visibleComments.length === 0 ? (
+          {/* daftar komentar - slider kalau banyak */}
+          <div
+            className={`space-y-2 ${
+              comments.length > 4 ? "max-h-64 overflow-y-auto pr-1" : ""
+            }`}
+          >
+            {comments.length === 0 ? (
               <p className="text-[11px] text-slate-500 dark:text-[var(--text-secondary)]">
                 Belum ada komentar.
               </p>
             ) : (
-              visibleComments.map((c) => {
+              comments.map((c) => {
                 const text = c.text || "";
                 const isLong = text.length > 160;
                 const expanded = !!expandedComments[c.id];
@@ -791,46 +826,41 @@ export default function ProductDetailPage() {
                 return (
                   <div
                     key={c.id}
-                    className="rounded-xl border border-slate-200 dark:border-slate-800 px-3 py-2 text-[11px] bg-slate-50/70 dark:bg-slate-900/40"
+                    className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/40 text-[11px]"
                   >
-                    <div className="flex items-center justify-between mb-0.5">
-                      <span className="font-semibold">
-                        {c.name || "Anonim"}
-                      </span>
-                      {/* Tanggal singkat kalau ada */}
-                      {c.createdAt?.toDate && (
-                        <span className="text-[10px] text-slate-400">
-                          {c.createdAt.toDate().toLocaleDateString("id-ID")}
+                    {/* header nama + tanggal + garis horizontal & vertikal*/}
+                    <div className="px-3 pt-2 pb-1 border-b border-slate-200 dark:border-slate-800">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold">
+                          {c.name || "Anonim"}
                         </span>
-                      )}
+                        <span className="h-3 w-px bg-slate-200 dark:bg-slate-700" />
+                        {c.createdAt?.toDate && (
+                          <span className="text-[10px] text-slate-400">
+                            {c.createdAt
+                              .toDate()
+                              .toLocaleDateString("id-ID")}
+                          </span>
+                        )}
+                      </div>
                     </div>
-                    <p className="text-slate-600 dark:text-[var(--text-secondary)] whitespace-pre-line break-words">
-                      {expanded || !isLong ? text : text.slice(0, 160) + "..."}
-                    </p>
-                    {isLong && (
-                      <button
-                        type="button"
+
+                    {/* isi komentar - kotak scroll, tap utk expand */}
+                    <div className="px-3 pb-2 pt-1">
+                      <div
                         onClick={() => handleToggleCommentExpand(c.id)}
-                        className="mt-1 text-[10px] text-primary underline"
+                        className={`${
+                          expanded ? "max-h-40" : "max-h-24"
+                        } overflow-y-auto cursor-pointer`}
                       >
-                        {expanded ? "Sembunyikan" : "Lihat selengkapnya"}
-                      </button>
-                    )}
+                        <p className="text-slate-600 dark:text-[var(--text-secondary)] whitespace-pre-line break-words">
+                          {text}
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 );
               })
-            )}
-
-            {comments.length > 3 && (
-              <button
-                type="button"
-                onClick={() => setShowAllComments((v) => !v)}
-                className="text-[11px] text-primary underline"
-              >
-                {showAllComments
-                  ? "Tampilkan sedikit komentar"
-                  : `Lihat semua komentar (${comments.length})`}
-              </button>
             )}
           </div>
         </section>
