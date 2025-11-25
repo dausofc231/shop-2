@@ -1,33 +1,22 @@
-// pages/auth/login.js
-import { useEffect, useState } from "react";
+// pages/auth/register.js
+import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/router";
-import { signInWithEmailAndPassword, onAuthStateChanged } from "firebase/auth";
 import { auth } from "../../lib/firebase";
-import { getUserData } from "../../lib/db";
+import { createUserWithEmailAndPassword } from "firebase/auth";
+import { createUserDoc } from "../../lib/db";
 import { FiSun, FiMoon } from "react-icons/fi";
 
-export default function LoginPage() {
+export default function RegisterPage() {
   const router = useRouter();
   const [theme, setTheme] = useState("dark");
 
+  const [username, setUsername] = useState("");
   const [gmail, setGmail] = useState("");
   const [password, setPassword] = useState("");
-  const [errorMsg, setErrorMsg] = useState("");
-  const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    const unsub = onAuthStateChanged(auth, async (user) => {
-      if (!user) return;
-      const data = await getUserData(user.uid);
-      if (data?.role === "admins") {
-        router.replace("/dasboradmins");
-      } else {
-        router.replace("/dasborUser");
-      }
-    });
-    return () => unsub();
-  }, [router]);
+  const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
 
   const toggleTheme = () => {
     if (typeof window === "undefined") return;
@@ -47,13 +36,27 @@ export default function LoginPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setErrorMsg("");
+
+    if (!username || !gmail || !password) {
+      setErrorMsg("Semua field wajib diisi.");
+      return;
+    }
+
     setLoading(true);
     try {
-      await signInWithEmailAndPassword(auth, gmail, password);
-      // redirect akan di-handle di onAuthStateChanged
+      const cred = await createUserWithEmailAndPassword(auth, gmail, password);
+      const user = cred.user;
+
+      await createUserDoc(user.uid, {
+        email: user.email,
+        username,
+        role: "users",
+      });
+
+      router.push("/auth/login");
     } catch (err) {
       console.error(err);
-      setErrorMsg(err.message || "Login gagal.");
+      setErrorMsg(err.message || "Gagal membuat akun.");
     } finally {
       setLoading(false);
     }
@@ -75,9 +78,9 @@ export default function LoginPage() {
           </button>
         </div>
 
-        <h1 className="text-base font-semibold mb-1">Welcome back</h1>
+        <h1 className="text-base font-semibold mb-1">Create account</h1>
         <p className="text-xs text-slate-500 dark:text-[var(--text-secondary)] mb-4">
-          Masuk untuk melanjutkan transaksi & lihat pesanan DP-mu.
+          Daftar untuk mulai belanja & pakai sistem DP.
         </p>
 
         {errorMsg && (
@@ -87,6 +90,17 @@ export default function LoginPage() {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-3">
+          <div>
+            <label className="block text-xs mb-1">Username</label>
+            <input
+              type="text"
+              className="input w-full"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              required
+            />
+          </div>
+
           <div>
             <label className="block text-xs mb-1">Email</label>
             <input
@@ -114,21 +128,16 @@ export default function LoginPage() {
             className="btn-primary w-full mt-2"
             disabled={loading}
           >
-            {loading ? "Signing in..." : "Sign in"}
+            {loading ? "Membuat akun..." : "Create account"}
           </button>
         </form>
 
-        <div className="flex items-center justify-between mt-4 text-xs text-slate-500 dark:text-[var(--text-secondary)]">
-          <Link href="/auth/forgot" className="underline">
-            Forgot password?
+        <p className="text-xs mt-4 text-center text-slate-500 dark:text-[var(--text-secondary)]">
+          Already have an account?{" "}
+          <Link href="/auth/login" className="underline font-semibold">
+            Sign in
           </Link>
-          <span>
-            No account?{" "}
-            <Link href="/auth/register" className="underline font-semibold">
-              Register
-            </Link>
-          </span>
-        </div>
+        </p>
       </div>
     </div>
   );
