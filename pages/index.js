@@ -69,11 +69,14 @@ export default function HomePage() {
 
   // Theme init
   useEffect(() => {
-    const stored = localStorage.getItem("theme") || "dark";
+    const stored = typeof window !== "undefined"
+      ? localStorage.getItem("theme") || "dark"
+      : "dark";
     setTheme(stored);
   }, []);
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
     const root = document.documentElement;
     if (theme === "dark") root.classList.add("dark");
     else root.classList.remove("dark");
@@ -87,11 +90,19 @@ export default function HomePage() {
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (user) => {
       setCurrentUser(user || null);
-      if (!user) return setUserDoc(null);
+      if (!user) {
+        setUserDoc(null);
+        return;
+      }
 
-      const ref = doc(db, "users", user.uid);
-      const snap = await getDoc(ref);
-      setUserDoc(snap.exists() ? snap.data() : null);
+      try {
+        const ref = doc(db, "users", user.uid);
+        const snap = await getDoc(ref);
+        setUserDoc(snap.exists() ? snap.data() : null);
+      } catch (err) {
+        console.error(err);
+        setUserDoc(null);
+      }
     });
     return () => unsub();
   }, []);
@@ -105,19 +116,29 @@ export default function HomePage() {
   useEffect(() => {
     const loadProducts = async () => {
       setLoadingProducts(true);
-      const q = query(collection(db, "products"), orderBy("createdAt", "desc"));
-      const snap = await getDocs(q);
-      setProducts(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
-      setLoadingProducts(false);
+      try {
+        const q = query(
+          collection(db, "products"),
+          orderBy("createdAt", "desc")
+        );
+        const snap = await getDocs(q);
+        setProducts(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+      } catch (err) {
+        console.error(err);
+        setProducts([]);
+      } finally {
+        setLoadingProducts(false);
+      }
     };
     loadProducts();
   }, []);
 
   // Slider auto
   useEffect(() => {
-    const id = setInterval(() => {
-      setActiveSlide((p) => (p + 1) % sliderData.length);
-    }, 4500);
+    const id = setInterval(
+      () => setActiveSlide((p) => (p + 1) % sliderData.length),
+      4500
+    );
     return () => clearInterval(id);
   }, []);
 
@@ -129,24 +150,28 @@ export default function HomePage() {
     new Intl.NumberFormat("id-ID", {
       style: "currency",
       currency: "IDR",
-    }).format(value || 0);
+      maximumFractionDigits: 0,
+    }).format(Number(value || 0));
 
   // Filter + sort
   const filteredProducts = useMemo(() => {
     const term = searchTerm.toLowerCase();
+
     let list = products.filter((p) => {
-      return (
-        p.name?.toLowerCase().includes(term) ||
-        p.description?.toLowerCase().includes(term)
-      );
+      if (!term) return true;
+      const name = (p.name || "").toLowerCase();
+      const desc = (p.description || "").toLowerCase();
+      return name.includes(term) || desc.includes(term);
     });
 
-    if (sortOption === "cheapest")
-      list = list.sort((a, b) => a.price - b.price);
-    else if (sortOption === "expensive")
-      list = list.sort((a, b) => b.price - a.price);
-    else if (sortOption === "popular")
-      list = list.sort((a, b) => (b.sold || 0) - (a.sold || 0));
+    if (sortOption === "cheapest") {
+      list = [...list].sort((a, b) => (a.price || 0) - (b.price || 0));
+    } else if (sortOption === "expensive") {
+      list = [...list].sort((a, b) => (b.price || 0) - (a.price || 0));
+    } else if (sortOption === "popular") {
+      list = [...list].sort((a, b) => (b.sold || 0) - (a.sold || 0));
+    }
+    // latest sudah dari Firestore
 
     return list;
   }, [products, searchTerm, sortOption]);
@@ -161,7 +186,6 @@ export default function HomePage() {
           </div>
 
           <div className="flex items-center gap-2">
-            {/* saldo */}
             {userDoc && (
               <div className="hidden sm:flex flex-col text-[11px] text-right">
                 <span className="font-semibold">{userDoc.username}</span>
@@ -171,7 +195,6 @@ export default function HomePage() {
               </div>
             )}
 
-            {/* cart */}
             <Link
               href="/cart"
               className="h-9 w-9 flex items-center justify-center rounded-full 
@@ -181,7 +204,6 @@ export default function HomePage() {
               <FiShoppingCart />
             </Link>
 
-            {/* theme */}
             <button
               onClick={toggleTheme}
               className="h-9 w-9 flex items-center justify-center rounded-full 
@@ -195,31 +217,32 @@ export default function HomePage() {
               )}
             </button>
 
-            {/* profile */}
             <div className="relative">
               <button
                 onClick={() => setMenuOpen(!menuOpen)}
                 className="h-9 px-3 rounded-full bg-white dark:bg-[#0b1220] border border-slate-300 dark:border-slate-700 flex items-center gap-2 text-xs"
               >
                 <FiUser />
-                <span className="hidden sm:inline">
+                <span className="hidden sm:inline max-w-[120px] truncate">
                   {userDoc?.username || currentUser?.email || "Login"}
                 </span>
               </button>
 
               {menuOpen && (
-                <div className="absolute right-0 mt-2 bg-white dark:bg-[#020617] border border-slate-300 dark:border-slate-700 text-xs rounded-xl shadow-lg p-1 w-40">
+                <div className="absolute right-0 mt-2 bg-white dark:bg-[#020617] border border-slate-300 dark:border-slate-700 text-xs rounded-xl shadow-lg p-1 w-44">
                   {!currentUser ? (
                     <>
                       <Link
                         href="/auth/login"
                         className="block px-3 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg"
+                        onClick={() => setMenuOpen(false)}
                       >
                         Sign in
                       </Link>
                       <Link
                         href="/auth/register"
                         className="block px-3 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg"
+                        onClick={() => setMenuOpen(false)}
                       >
                         Register
                       </Link>
@@ -229,17 +252,22 @@ export default function HomePage() {
                       <Link
                         href="/dasborUser"
                         className="block px-3 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg"
+                        onClick={() => setMenuOpen(false)}
                       >
                         Dashboard user
                       </Link>
                       <Link
                         href="/dasboradmins"
                         className="block px-3 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg"
+                        onClick={() => setMenuOpen(false)}
                       >
                         Dashboard admin
                       </Link>
                       <button
-                        onClick={handleLogout}
+                        onClick={async () => {
+                          await handleLogout();
+                          setMenuOpen(false);
+                        }}
                         className="w-full text-left text-red-500 px-3 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg"
                       >
                         <FiLogOut className="inline mr-1" />
@@ -258,17 +286,15 @@ export default function HomePage() {
       <main className="max-w-5xl mx-auto px-4 py-6 space-y-6">
         {/* POSTER RECTANGLE */}
         <section className="rounded-2xl bg-white dark:bg-[#020617] border border-slate-300 dark:border-slate-700 h-28 sm:h-32 md:h-36 overflow-hidden relative">
-          {/* image */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={sliderData[activeSlide].imageUrl}
-            alt=""
+            alt={sliderData[activeSlide].title}
             className="w-full h-full object-cover"
           />
 
           <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-black/20 to-transparent" />
 
-          {/* text */}
           <div className="absolute left-3 top-1/2 -translate-y-1/2 text-white">
             <h1 className="text-base sm:text-lg font-bold">
               {sliderData[activeSlide].title}
@@ -284,7 +310,6 @@ export default function HomePage() {
             </Link>
           </div>
 
-          {/* arrows */}
           <button
             onClick={goPrevSlide}
             className="absolute left-2 top-1/2 -translate-y-1/2 h-7 w-7 bg-black/40 rounded-full flex items-center justify-center text-white"
@@ -298,13 +323,13 @@ export default function HomePage() {
             <FiChevronRight />
           </button>
 
-          {/* bullets */}
           <div className="absolute bottom-2 left-0 right-0 flex justify-center gap-1">
-            {sliderData.map((_, i) => (
-              <div
-                key={i}
+            {sliderData.map((s, i) => (
+              <button
+                key={s.id}
+                type="button"
                 onClick={() => setActiveSlide(i)}
-                className={`h-1.5 rounded-full cursor-pointer ${
+                className={`h-1.5 rounded-full ${
                   i === activeSlide ? "w-5 bg-sky-400" : "w-2 bg-slate-500"
                 }`}
               />
@@ -320,14 +345,14 @@ export default function HomePage() {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Cari produk..."
-              className="w-full pl-9 pr-3 py-2.5 rounded-xl text-xs bg-white dark:bg-[#020617] border border-slate-300 dark:border-slate-700"
+              className="w-full pl-9 pr-3 py-2.5 rounded-xl text-xs bg-white dark:bg-[#020617] border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-50 placeholder:text-slate-400 dark:placeholder:text-slate-500"
             />
           </div>
 
           <select
             value={sortOption}
             onChange={(e) => setSortOption(e.target.value)}
-            className="w-full py-2.5 px-3 rounded-xl text-xs bg-white dark:bg-[#020617] border border-slate-300 dark:border-slate-700"
+            className="w-full py-2.5 px-3 rounded-xl text-xs bg-white dark:bg-[#020617] border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-50"
           >
             <option value="latest">Terbaru</option>
             <option value="cheapest">Termurah</option>
@@ -336,62 +361,74 @@ export default function HomePage() {
           </select>
         </section>
 
-        {/* PRODUK GRID 2 / 3 / 4 */}
+        {/* GRID PRODUK */}
         <section id="katalog">
           {loadingProducts ? (
-            <p className="text-center text-xs text-slate-500">Loading...</p>
+            <p className="text-center text-xs text-slate-500 dark:text-slate-400">
+              Loading products...
+            </p>
+          ) : filteredProducts.length === 0 ? (
+            <p className="text-center text-xs text-slate-500 dark:text-slate-400">
+              Tidak ada produk yang cocok dengan pencarianmu.
+            </p>
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
               {filteredProducts.map((p) => {
-                const price = p.price || 0;
-                const discount = p.discount || 0;
+                const price = Number(p.price || 0);
+                const discount = Number(p.discount || 0);
                 const finalPrice =
                   discount > 0
-                    ? price - (price * discount) / 100
+                    ? Math.round(price - (price * discount) / 100)
                     : price;
                 const firstImage =
-                  p.images?.length > 0 ? p.images[0] : null;
+                  Array.isArray(p.images) && p.images.length > 0
+                    ? p.images[0]
+                    : null;
+                const sold = Number(p.sold || 0);
+                const stock = Number(p.stock || 0);
+
                 return (
                   <Link
                     href={`/${p.id}`}
                     key={p.id}
-                    className="bg-white dark:bg-[#020617] border border-slate-300 dark:border-slate-700 rounded-xl overflow-hidden hover:border-sky-500/50 transition flex flex-col"
+                    className="bg-white dark:bg-[#020617] border border-slate-300 dark:border-slate-700 rounded-2xl overflow-hidden hover:border-sky-500/60 transition flex flex-col"
                   >
-                    <div className="relative aspect-[4/3]">
+                    <div className="relative aspect-[4/3] bg-slate-100 dark:bg-slate-900">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         src={firstImage || "/noimg.png"}
+                        alt={p.name}
                         className="w-full h-full object-cover"
                       />
+
                       {discount > 0 && (
-                        <span className="absolute top-1 left-1 bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">
+                        <span className="absolute top-1.5 left-1.5 bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-full">
                           -{discount}%
                         </span>
                       )}
-                      <span className="absolute top-1 right-1 bg-sky-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">
-                        {p.sold > 0 ? "Populer" : "Baru"}
+
+                      <span className="absolute top-1.5 right-1.5 bg-sky-500 text-white text-[10px] px-2 py-0.5 rounded-full">
+                        {sold > 0 ? "Populer" : "Baru"}
                       </span>
                     </div>
 
-                    <div className="p-2.5 text-[11px]">
+                    <div className="p-2.5 flex-1 flex flex-col gap-1 text-[11px]">
                       <div className="font-semibold line-clamp-1">
                         {p.name}
                       </div>
-                      <div className="text-slate-500 dark:text-slate-400 line-clamp-2 text-[10px]">
-                        {p.description}
+                      <div className="text-[10px] text-slate-500 dark:text-slate-400 line-clamp-2">
+                        {p.description ||
+                          "Produk unggulan yang sangat dinantikan."}
                       </div>
 
-                      <div className="mt-1 text-sky-500 font-semibold">
+                      {/* Hanya harga final, truncate jika kepanjangan */}
+                      <div className="mt-1 text-sky-500 font-semibold text-[11px] truncate">
                         {formatRupiah(finalPrice)}
                       </div>
-                      {discount > 0 && (
-                        <div className="line-through text-[10px] text-slate-500">
-                          {formatRupiah(price)}
-                        </div>
-                      )}
 
-                      <div className="mt-1 text-[10px] text-slate-500 dark:text-slate-400">
-                        Terjual {p.sold || 0} • Stok {p.stock || 0}
+                      {/* Terjual + stok juga truncate */}
+                      <div className="mt-1 text-[10px] text-slate-500 dark:text-slate-400 truncate">
+                        Terjual {sold} • Stok {stock}
                       </div>
                     </div>
                   </Link>
