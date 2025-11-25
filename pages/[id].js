@@ -225,7 +225,7 @@ export default function ProductDetailPage() {
       maximumFractionDigits: 0,
     }).format(Number(value || 0));
 
-  // format singkat: 1.2k, 1,5 jt, 2,3M
+  // format singkat: 1,2k / 1,5 jt / 2,3M
   const formatCompact = (value) => {
     const num = Number(value || 0);
     if (num >= 1_000_000_000) {
@@ -415,7 +415,7 @@ export default function ProductDetailPage() {
 
   return (
     <div className="min-h-screen bg-slate-100 dark:bg-bg-dark text-slate-900 dark:text-[var(--text)] text-sm">
-      {/* NAVBAR ATAS (punyamu yg tetap) */}
+      {/* NAVBAR ATAS (tetap) */}
       <header className="w-full border-b border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-bg-dark/80 backdrop-blur sticky top-0 z-20">
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -527,11 +527,11 @@ export default function ProductDetailPage() {
       </header>
 
       {/* CONTENT */}
-      <main className="max-w-5xl mx-auto px-4 py-4 space-y-4">
+      <main className="max-w-5xl mx-auto px-4 py-4 space-y-3">
         {/* CARD PRODUK */}
-        <section className="card p-3 sm:p-4 space-y-4">
+        <section className="card p-3 sm:p-3.5 space-y-3">
           {/* gambar + slider + thumb */}
-          <div className="space-y-2 pb-3 border-b border-slate-200 dark:border-slate-800">
+          <div className="space-y-2 pb-2 border-b border-slate-200 dark:border-slate-800">
             {hasImages ? (
               <div className="relative w-full rounded-2xl overflow-hidden bg-slate-100 dark:bg-slate-900 aspect-[4/3]">
                 <div
@@ -583,7 +583,7 @@ export default function ProductDetailPage() {
                     key={idx}
                     type="button"
                     onClick={() => setCurrentImageIndex(idx)}
-                    className={`h-12 w-12 rounded-md overflow-hidden flex-shrink-0 border ${
+                    className={`h-11 w-11 rounded-md overflow-hidden flex-shrink-0 border ${
                       idx === currentImageIndex
                         ? "border-primary"
                         : "border-slate-200 dark:border-slate-700"
@@ -601,32 +601,36 @@ export default function ProductDetailPage() {
             )}
           </div>
 
-          {/* TERJUAL / STOK dengan garis & garis vertikal */}
-          <div className="flex items-center justify-between text-[11px] text-slate-600 dark:text-[var(--text-secondary)] py-2 border-b border-slate-200 dark:border-slate-800">
-            <span className="flex-1 text-left">
-              Terjual:{" "}
-              <span className="font-semibold">
-                {formatCompactNumber(product.sold || 0)}
+          {/* TERJUAL / STOK dibungkus pill + garis */}
+          <div className="flex items-center justify-between gap-2 text-[11px] text-slate-600 dark:text-[var(--text-secondary)] py-2 border-b border-slate-200 dark:border-slate-800">
+            <div className="flex-1 flex justify-start">
+              <span className="inline-flex items-center px-2 py-1 rounded-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
+                <span className="opacity-70 mr-1">Terjual</span>
+                <span className="font-semibold">
+                  {formatCompactNumber(product.sold || 0)}
+                </span>
               </span>
-            </span>
-            <span className="h-4 w-px bg-slate-200 dark:bg-slate-700" />
-            <span className="flex-1 text-right">
-              Stok:{" "}
-              <span className="font-semibold">
-                {formatCompactNumber(product.stock || 0)}
+            </div>
+            <span className="h-5 w-px bg-slate-200 dark:bg-slate-700" />
+            <div className="flex-1 flex justify-end">
+              <span className="inline-flex items-center px-2 py-1 rounded-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
+                <span className="opacity-70 mr-1">Stok</span>
+                <span className="font-semibold">
+                  {formatCompactNumber(product.stock || 0)}
+                </span>
               </span>
-            </span>
+            </div>
           </div>
 
-          {/* TITLE + HARGA dengan garis, tap utk expand */}
-          <div className="space-y-2 py-3 border-b border-slate-200 dark:border-slate-800">
+          {/* TITLE + HARGA – super rapet */}
+          <div className="space-y-1 py-2 border-b border-slate-200 dark:border-slate-800">
             <button
               type="button"
               onClick={() => setShowFullTitle((v) => !v)}
               className="text-left w-full"
             >
               <h1
-                className={`text-base font-semibold text-slate-900 dark:text-[var(--text)] ${
+                className={`text-sm font-semibold text-slate-900 dark:text-[var(--text)] ${
                   showFullTitle ? "" : "line-clamp-1"
                 }`}
               >
@@ -641,7 +645,7 @@ export default function ProductDetailPage() {
                 className="text-left flex-1 cursor-pointer"
               >
                 <div
-                  className={`text-lg font-bold text-primary ${
+                  className={`text-base font-bold text-primary ${
                     showFullPrice ? "" : "truncate"
                   }`}
                 >
@@ -666,15 +670,15 @@ export default function ProductDetailPage() {
             </div>
           </div>
 
-          {/* DESKRIPSI - BOX SLIDER + SCROLL, tap box utk expand */}
-          <div className="space-y-2 py-3 border-b border-slate-200 dark:border-slate-800">
+          {/* DESKRIPSI – tap box untuk expand, rapet */}
+          <div className="space-y-1 py-2 border-b border-slate-200 dark:border-slate-800">
             <div className="text-[11px] font-semibold text-slate-500 dark:text-[var(--text-secondary)]">
               Deskripsi Produk
             </div>
             <div
               onClick={() => setShowFullDesc((v) => !v)}
               className={`w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/40 text-xs text-slate-700 dark:text-[var(--text-secondary)] p-2 whitespace-pre-line break-words ${
-                showFullDesc ? "max-h-64" : "max-h-32"
+                showFullDesc ? "max-h-64" : "max-h-28"
               } overflow-y-auto cursor-pointer`}
             >
               {product.description
@@ -683,8 +687,8 @@ export default function ProductDetailPage() {
             </div>
           </div>
 
-          {/* KATEGORI – slider horizontal */}
-          <div className="space-y-2 py-3 border-b border-slate-200 dark:border-slate-800">
+          {/* KATEGORI – slider horizontal, rapet */}
+          <div className="space-y-1 py-2 border-b border-slate-200 dark:border-slate-800">
             <div className="text-[11px] font-semibold text-slate-500 dark:text-[var(--text-secondary)]">
               Kategori
             </div>
@@ -707,7 +711,7 @@ export default function ProductDetailPage() {
           </div>
 
           {/* TOMBOL KERANJANG */}
-          <div className="pt-2">
+          <div className="pt-1">
             <button
               onClick={handleAddToCart}
               disabled={!currentUser || cartBusy || product.stock <= 0}
@@ -728,10 +732,10 @@ export default function ProductDetailPage() {
         </section>
 
         {/* ULASAN & RATING + KOMENTAR */}
-        <section className="card p-3 sm:p-4 space-y-3">
+        <section className="card p-3 sm:p-3.5 space-y-2.5">
           {/* header */}
           <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2">
-            <div>
+            <div className="space-y-0.5">
               <h2 className="text-sm font-semibold">Ulasan &amp; Rating</h2>
               <p className="text-[11px] text-slate-500 dark:text-[var(--text-secondary)]">
                 {commentDisplay} komentar dari pengguna
@@ -758,10 +762,10 @@ export default function ProductDetailPage() {
           {/* form komentar */}
           <form
             onSubmit={handleAddComment}
-            className="space-y-2 border-b border-slate-200 dark:border-slate-800 pb-3"
+            className="space-y-2 border-b border-slate-200 dark:border-slate-800 pb-2.5"
           >
-            <div className="flex flex-col gap-2 text-xs">
-              <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-1.5 text-xs">
+              <div className="flex flex-col gap-0.5">
                 <label className="text-[11px] text-slate-500 dark:text-[var(--text-secondary)]">
                   Nama
                 </label>
@@ -774,7 +778,7 @@ export default function ProductDetailPage() {
                 />
               </div>
 
-              <div className="flex flex-col gap-1">
+              <div className="flex flex-col gap-0.5">
                 <label className="text-[11px] text-slate-500 dark:text-[var(--text-secondary)]">
                   Komentar
                 </label>
@@ -799,7 +803,7 @@ export default function ProductDetailPage() {
                 <button
                   type="submit"
                   disabled={savingComment || !commentText.trim()}
-                  className="w-full h-9 flex items-center justify-center rounded-full bg-primary text-white text-[11px] font-semibold disabled:opacity-60"
+                  className="w-full h-8 flex items-center justify-center rounded-full bg-primary text-white text-[11px] font-semibold disabled:opacity-60"
                 >
                   {savingComment ? "Mengirim..." : "Kirim"}
                 </button>
@@ -809,8 +813,8 @@ export default function ProductDetailPage() {
 
           {/* daftar komentar - slider kalau banyak */}
           <div
-            className={`space-y-2 ${
-              comments.length > 4 ? "max-h-64 overflow-y-auto pr-1" : ""
+            className={`space-y-1.5 ${
+              comments.length > 4 ? "max-h-60 overflow-y-auto pr-1" : ""
             }`}
           >
             {comments.length === 0 ? (
@@ -820,7 +824,6 @@ export default function ProductDetailPage() {
             ) : (
               comments.map((c) => {
                 const text = c.text || "";
-                const isLong = text.length > 160;
                 const expanded = !!expandedComments[c.id];
 
                 return (
@@ -828,10 +831,10 @@ export default function ProductDetailPage() {
                     key={c.id}
                     className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/40 text-[11px]"
                   >
-                    {/* header nama + tanggal + garis horizontal & vertikal*/}
-                    <div className="px-3 pt-2 pb-1 border-b border-slate-200 dark:border-slate-800">
+                    {/* header nama + tanggal + garis */}
+                    <div className="px-3 pt-1.5 pb-1 border-b border-slate-200 dark:border-slate-800">
                       <div className="flex items-center gap-2">
-                        <span className="font-semibold">
+                        <span className="font-semibold max-w-[120px] truncate">
                           {c.name || "Anonim"}
                         </span>
                         <span className="h-3 w-px bg-slate-200 dark:bg-slate-700" />
@@ -845,12 +848,12 @@ export default function ProductDetailPage() {
                       </div>
                     </div>
 
-                    {/* isi komentar - kotak scroll, tap utk expand */}
+                    {/* isi komentar - box scroll, tap untuk expand */}
                     <div className="px-3 pb-2 pt-1">
                       <div
                         onClick={() => handleToggleCommentExpand(c.id)}
                         className={`${
-                          expanded ? "max-h-40" : "max-h-24"
+                          expanded ? "max-h-40" : "max-h-20"
                         } overflow-y-auto cursor-pointer`}
                       >
                         <p className="text-slate-600 dark:text-[var(--text-secondary)] whitespace-pre-line break-words">
